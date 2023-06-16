@@ -20,19 +20,24 @@ pub fn build(b: *std.Build) !void {
     };
 
     // Flags and options
-    const docs = b.option(bool, "docs", "Generate docs") orelse false;
-    const static = b.option(bool, "static", "Compile as static library (defaults to shared library)") orelse false;
+    const docs = b.option(bool, "docs", "Generate docs (defaults to false)") orelse false;
+    const static = b.option(bool, "static", "Compile as static library, otherwise compile as shared library (defaults to false)") orelse false;
+    const libc = b.option(bool, "libc", "Links libc to the output library (defaults to true)") orelse true;
+    const opencl = b.option([]const u8, "opencl", "Add OpenCL backend to the specified OpenCL version (defaults to false)") orelse null;
 
     // Library
     const lib: *std.build.Step.Compile = if (static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
+    if (libc) lib.linkLibC();
     lib.emit_docs = if (docs) .emit else .default;
     b.installArtifact(lib);
 
     // Tests
-    const tests = add_tests(b, target, optimize);
+    const tests = add_tests(b, target, optimize, libc);
 
     // Import libraries
-    try build_libcpuid(b, &[2]*std.build.Step.Compile{ lib, tests }, target);
+    const compiles = &[2]*std.build.Step.Compile{ lib, tests };
+    try build_libcpuid(b, compiles, target);
+    if (opencl) |cl| try build_opencl(b, cl, compiles);
 }
 
 fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, target: CrossTarget) !void {
@@ -75,7 +80,22 @@ fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, targ
     @compileError("not yet implemented");
 }
 
-fn add_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) *std.build.Step.Compile {
+fn build_opencl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile) !void {
+    const semver = try std.SemanticVersion.parse(raw_version);
+
+    var version = std.ArrayList(u8).init(b.allocator);
+    defer version.deinit();
+    try std.fmt.format(version.writer(), "{}{}{}", .{ semver.major, semver.minor, semver.patch });
+
+    // TODO non-unix include opencl headers
+
+    for (compiles) |compile| {
+        compile.linkSystemLibrary("OpenCL");
+        compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
+    }
+}
+
+fn add_tests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const main_tests = b.addTest(.{
@@ -83,6 +103,7 @@ fn add_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) *std.build.
         .target = target,
         .optimize = optimize,
     });
+    if (libc) main_tests.linkLibC();
 
     const run_main_tests = b.addRunArtifact(main_tests);
     const test_step = b.step("test", "Run library tests");

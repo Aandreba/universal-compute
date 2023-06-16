@@ -8,55 +8,58 @@ const cpuid = utils.libcpuid;
 const target: std.Target = builtin.target;
 const windows = std.os.windows;
 
-pub fn getHostDevices(devices: ?[*]root.device.Device, count: *usize) !void {
-    if (devices) |devs| {
-        if (count.* == 0) return;
+pub fn getDevices(devices: []root.Device) !usize {
+    if (comptime builtin.link_libc and target.cpu.arch.isX86()) {
+        var raw: cpuid.cpu_raw_data_t = undefined;
+        try cpuidToError(cpuid.cpuid_get_raw_data(&raw));
 
-        if (comptime target.cpu.arch.isX86()) {
-            var raw: cpuid.cpu_raw_data_t = undefined;
-            try cpuidToError(cpuid.cpuid_get_raw_data(&raw));
+        var data: cpuid.cpu_id_t = undefined;
+        try cpuidToError(cpuid.cpu_identify(&raw, &data));
 
-            var data: cpuid.cpu_id_t = undefined;
-            try cpuidToError(cpuid.cpu_identify(&raw, &data));
+        devices[0] = .{
+            .vendor = try alloc.dupe(u8, std.mem.sliceTo(&data.vendor_str, 0)),
+            .name = try alloc.dupe(u8, std.mem.sliceTo(&data.brand_str, 0)),
+            .cores = if (builtin.single_threaded) 1 else std.math.cast(usize, data.total_logical_cpus) orelse std.math.maxInt(usize),
+            .backend = .Host,
+            .backend_data = null,
+        };
+    } else if (comptime target.os.tag == .windows) {
+        var info: windows.SYSTEM_INFO = undefined;
+        windows.kernel32.GetSystemInfo(&info);
 
-            devs[0] = .{
-                .vendor = alloc.dupeZ(u8, std.mem.sliceTo(&data.vendor_str, 0)),
-                .name = alloc.dupeZ(u8, std.mem.sliceTo(&data.brand_str, 0)),
-                .cores = std.math.cast(usize, data.total_logical_cpus) orelse std.math.maxInt(usize),
-            };
-        } else if (comptime target.os.tag == .windows) {
-            var info: windows.SYSTEM_INFO = undefined;
-            windows.kernel32.GetSystemInfo(&info);
-
-            devs[0] = .{
-                .vendor = null,
-                .name = null,
-                .cores = std.math.cast(usize, info.dwNumberOfProcessors) orelse std.math.maxInt(usize),
-            };
-        } else if (comptime target.isWasm()) {
-            devs[0] = .{
-                .vendor = null,
-                .name = null,
-                .cores = 1, // TODO wasm threads
-            };
-        } else {
-            @compileError("not yet implemented");
-        }
+        devices[0] = .{
+            .vendor = null,
+            .name = null,
+            .cores = if (builtin.single_threaded) 1 else std.math.cast(usize, info.dwNumberOfProcessors) orelse std.math.maxInt(usize),
+            .backend = .Host,
+            .backend_data = null,
+        };
+    } else if (comptime target.isWasm()) {
+        // TODO wasm threads
+        devices[0] = .{
+            .vendor = null,
+            .name = null,
+            .cores = 1,
+            .backend = .Host,
+            .backend_data = null,
+        };
+    } else {
+        @compileError("not yet implemented");
     }
 
-    count.* = 1;
+    return 1;
 }
 
 fn cpuidToError(e: cpuid.cpu_error_t) !void {
     return switch (e) {
-        cpuid.ERR_OK => void,
+        cpuid.ERR_OK => return,
         cpuid.ERR_NO_CPUID => error.NoCpuid,
         cpuid.ERR_NO_RDTSC => error.NoRdtsc,
         cpuid.ERR_NO_MEM => error.OutOfMemory,
         cpuid.ERR_OPEN => error.OpenFailed,
         cpuid.ERR_BADFMT => error.BadFormat,
-        cpuid.ERR_NOT_IMPL => error.NotImplemented,
-        cpuid.ERR_CPU_UNKK => error.UnknownCpu,
+        cpuid.ERR_NOT_IMP => error.NotImplemented,
+        cpuid.ERR_CPU_UNKN => error.UnknownCpu,
         cpuid.ERR_NO_RDMSR => error.NoRdmsr,
         cpuid.ERR_NO_DRIVER => error.NoDriver,
         cpuid.ERR_NO_PERMS => error.NoPerms,
@@ -71,7 +74,10 @@ fn cpuidToError(e: cpuid.cpu_error_t) !void {
 }
 
 test "get cpu info" {
-    var device: root.device.Device = undefined;
-    getHostDevices(&device, &1);
-    std.debug.print("{}", .{device});
+    var device = try std.testing.allocator.create(root.Device);
+    defer std.testing.allocator.destroy(device);
+
+    var len: usize = 1;
+    try getDevices(@ptrCast([*]root.Device, &device)[0..1], &len);
+    defer device.cuDeviceDeinit();
 }
