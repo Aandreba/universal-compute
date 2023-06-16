@@ -8,35 +8,35 @@ const Optimize = std.builtin.Mode;
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Libraries
-    const libcpuid = build_libcpuid(b, target);
-
-    const lib = b.addSharedLibrary(.{
+    const options = .{
         .name = "universal-compute",
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
-    });
-    lib.emit_docs = .emit;
-    // lib.emit_h = true;
+    };
 
-    if (libcpuid) |cpuid| {
-        lib.addIncludePath("lib/libcpuid/libcpuid");
-        lib.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid.a");
-        lib.step.dependOn(&cpuid.step);
-    }
+    // Flags and options
+    const docs = b.option(bool, "docs", "Generate docs") orelse false;
+    const static = b.option(bool, "static", "Compile as static library (defaults to shared library)") orelse false;
 
+    // Library
+    const lib: *std.build.Step.Compile = if (static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
+    lib.emit_docs = if (docs) .emit else .default;
     b.installArtifact(lib);
 
-    build_tests(b, target, optimize);
+    // Tests
+    const tests = add_tests(b, target, optimize);
+
+    // Import libraries
+    try build_libcpuid(b, &[2]*std.build.Step.Compile{ lib, tests }, target);
 }
 
-fn build_libcpuid(b: *std.Build, target: CrossTarget) ?*std.build.Step.Run {
-    if (!target.getCpuArch().isX86()) return null;
+fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, target: CrossTarget) !void {
+    if (!target.getCpuArch().isX86()) return;
 
     if (build_target.os.tag == .linux or build_target.os.tag.isDarwin()) {
         const libtoolize = b.addSystemCommand(&[_][]const u8{"libtoolize"});
@@ -46,7 +46,15 @@ fn build_libcpuid(b: *std.Build, target: CrossTarget) ?*std.build.Step.Run {
         autoreconf.cwd = "lib/libcpuid";
         autoreconf.step.dependOn(&libtoolize.step);
 
-        const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
+        const zig_triple = try target.linuxTriple(b.allocator);
+        defer b.allocator.free(zig_triple);
+        var host_str = std.ArrayList(u8).init(b.allocator);
+        defer host_str.deinit();
+        try host_str.appendSlice("--host=");
+        try host_str.appendSlice(zig_triple);
+
+        const configure = b.addSystemCommand(&[_][]const u8{ "./configure", host_str.items });
+        configure.setEnvironmentVariable("CC", "zig cc");
         configure.cwd = "lib/libcpuid";
         configure.step.dependOn(&autoreconf.step);
 
@@ -54,14 +62,20 @@ fn build_libcpuid(b: *std.Build, target: CrossTarget) ?*std.build.Step.Run {
         make.cwd = "lib/libcpuid";
         make.step.dependOn(&configure.step);
 
-        return make;
+        for (compiles) |compile| {
+            compile.addIncludePath("lib/libcpuid/libcpuid");
+            compile.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid" ++ comptime build_target.staticLibSuffix());
+            compile.step.dependOn(&make.step);
+        }
+
+        return;
     }
 
     // TODO windows
     @compileError("not yet implemented");
 }
 
-fn build_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) void {
+fn add_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) *std.build.Step.Compile {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const main_tests = b.addTest(.{
@@ -71,10 +85,7 @@ fn build_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) void {
     });
 
     const run_main_tests = b.addRunArtifact(main_tests);
-
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build test`
-    // This will evaluate the `test` step rather than the default, which is "install".
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_main_tests.step);
+    return main_tests;
 }
