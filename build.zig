@@ -1,36 +1,67 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const build_target: std.Target = builtin.target;
+
+const CrossTarget = std.zig.CrossTarget;
+const Optimize = std.builtin.Mode;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
-
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
+
+    // Libraries
+    const libcpuid = build_libcpuid(b, target);
 
     const lib = b.addSharedLibrary(.{
         .name = "universal-compute",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
-    lib.out_h_filename = "./zig-out/include/universal-compute.h";
-    lib.emit_h = true;
+    lib.emit_docs = .emit;
+    // lib.emit_h = true;
 
-    // This declares intent for the library to be installed into the standard
-    // location when the user invokes the "install" step (the default step when
-    // running `zig build`).
+    if (libcpuid) |cpuid| {
+        lib.addIncludePath("lib/libcpuid/libcpuid");
+        lib.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid.a");
+        lib.step.dependOn(&cpuid.step);
+    }
+
     b.installArtifact(lib);
 
+    build_tests(b, target, optimize);
+}
+
+fn build_libcpuid(b: *std.Build, target: CrossTarget) ?*std.build.Step.Run {
+    if (!target.getCpuArch().isX86()) return null;
+
+    if (build_target.os.tag == .linux or build_target.os.tag.isDarwin()) {
+        const libtoolize = b.addSystemCommand(&[_][]const u8{"libtoolize"});
+        libtoolize.cwd = "lib/libcpuid";
+
+        const autoreconf = b.addSystemCommand(&[_][]const u8{ "autoreconf", "--install" });
+        autoreconf.cwd = "lib/libcpuid";
+        autoreconf.step.dependOn(&libtoolize.step);
+
+        const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
+        configure.cwd = "lib/libcpuid";
+        configure.step.dependOn(&autoreconf.step);
+
+        const make = b.addSystemCommand(&[_][]const u8{"make"});
+        make.cwd = "lib/libcpuid";
+        make.step.dependOn(&configure.step);
+
+        return make;
+    }
+
+    // TODO windows
+    @compileError("not yet implemented");
+}
+
+fn build_tests(b: *std.Build, target: CrossTarget, optimize: Optimize) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const main_tests = b.addTest(.{
