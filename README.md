@@ -5,4 +5,5 @@
 - libtoolize
 - autoreconf
 ### Windows
-Unavailable, use Windows Subsystem for Linux instead.
+- Cygwin
+- [LibTool for Windows](https://gnuwin32.sourceforge.net/packages/libtool.htm)

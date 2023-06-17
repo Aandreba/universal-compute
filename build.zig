@@ -9,10 +9,6 @@ const Optimize = std.builtin.Mode;
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) !void {
-    if (build_target.os.tag == .windows) {
-        @compileError("Compilation on Windows is not supported. Use WSL instead");
-    }
-
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -44,7 +40,7 @@ pub fn build(b: *std.Build) !void {
 
     // Import libraries
     const compiles = &[2]*std.build.Step.Compile{ lib, tests };
-    if (libc) try build_libcpuid(b, compiles, target, submodule);
+    //if (libc) try build_libcpuid(b, compiles, target, submodule);
     if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
 }
 
@@ -107,8 +103,7 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
     });
     if (libc) main_tests.linkLibC();
 
-    const run_main_tests = b.addRunArtifact(main_tests);
     const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&run_main_tests.step);
+    test_step.dependOn(&b.addRunArtifact(main_tests).step);
     return main_tests;
 }
