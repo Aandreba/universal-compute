@@ -90,7 +90,9 @@ fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, targ
     try host_str.appendSlice(zig_triple);
 
     const configure = try addUnixCommand(b, &[_][]const u8{ "./configure", host_str.items });
-    configure.setEnvironmentVariable("CC", "zig cc");
+    if (build_target.os.tag == .linux or build_target.os.tag.isDarwin()) {
+        configure.setEnvironmentVariable("CC", "zig cc");
+    }
     configure.cwd = "lib/libcpuid";
     configure.step.dependOn(&autoreconf.step);
 
