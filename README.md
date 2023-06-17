@@ -1,9 +1,8 @@
 # Universal Compute - Generic compute library for (almost) any target
 
-## Requirements
+## Build Requirements
 ### Linux / macOs
 - libtoolize
 - autoreconf
 ### Windows
-Windows Subsystem for Linux with the same requirements as linux plus:
-- dos2unix
+Unavailable, use Windows Subsystem for Linux instead.

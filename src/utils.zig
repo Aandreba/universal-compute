@@ -9,7 +9,7 @@ pub fn enumList(comptime T: type) [@typeInfo(T).Enum.fields.len]T {
     const info: std.builtin.Type.Enum = @typeInfo(T).Enum;
 
     var result: [info.fields.len]T = undefined;
-    for (info.fields, 0..) |field, i| {
+    inline for (info.fields, 0..) |field, i| {
         result[i] = @intToEnum(T, field.value);
     }
 

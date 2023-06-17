@@ -77,7 +77,6 @@ test "get cpu info" {
     var device = try std.testing.allocator.create(root.Device);
     defer std.testing.allocator.destroy(device);
 
-    var len: usize = 1;
-    try getDevices(@ptrCast([*]root.Device, &device)[0..1], &len);
-    defer device.cuDeviceDeinit();
+    _ = try getDevices(@ptrCast([*]root.Device, device)[0..1]);
+    defer device.ucDeviceDeinit();
 }
