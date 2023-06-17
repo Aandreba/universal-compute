@@ -23,8 +23,6 @@ pub fn build(b: *std.Build) !void {
 
     // Fetch submodules
     const submodule = b.addSystemCommand(&[_][]const u8{ "git", "submodule", "update", "--init", "--remote" });
-    const msbuild = if (build_target.os.tag == .windows) try getMsbuildPath(b.allocator) else undefined;
-    defer b.allocator.free(msbuild);
 
     // Flags and options
     const docs = b.option(bool, "docs", "Generate docs (defaults to false)") orelse false;
@@ -43,21 +41,44 @@ pub fn build(b: *std.Build) !void {
 
     // Import libraries
     const compiles = &[2]*std.build.Step.Compile{ lib, tests };
-    if (libc) try build_libcpuid(b, compiles, target, msbuild, submodule);
+    if (libc) try build_libcpuid(b, compiles, target, submodule);
     if (opencl) |cl| try build_opencl(b, cl, compiles, submodule);
 }
 
 fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, target: CrossTarget, submodule: *std.build.Step.Run) !void {
     if (!target.getCpuArch().isX86()) return;
 
-    const wsl = if (build_target.os.tag == .windows) null else null;
-    _ = wsl;
+    const Impl = struct {
+        fn dos2unix(bd2u: *std.Build, comptime exts: []const []const u8) ![exts.len]*std.build.Step.Run {
+            var result: [exts.len]*std.build.Step.Run = undefined;
+            inline for (exts, 0..) |ext, i| {
+                const d2u = try addUnixCommand(bd2u, &[_][]const u8{
+                    "find",
+                    ".",
+                    "-name",
+                    "\\*." ++ ext,
+                    "|",
+                    "xargs",
+                    "dos2unix",
+                });
+                d2u.cwd = "lib/libcpuid";
+                result[i] = d2u;
+            }
+            return result;
+        }
+    };
 
-    const libtoolize = b.addSystemCommand(&[_][]const u8{"libtoolize"});
+    const libtoolize = try addUnixCommand(b, &[_][]const u8{"libtoolize"});
     libtoolize.cwd = "lib/libcpuid";
     libtoolize.step.dependOn(&submodule.step);
 
-    const autoreconf = b.addSystemCommand(&[_][]const u8{ "autoreconf", "--install" });
+    if (build_target.os.tag == .windows) {
+        for (try Impl.dos2unix(b, &[_][]const u8{ "m4", "ac", "am" })) |dos2unix| {
+            libtoolize.step.dependOn(&dos2unix.step);
+        }
+    }
+
+    const autoreconf = try addUnixCommand(b, &[_][]const u8{ "autoreconf", "--install" });
     autoreconf.cwd = "lib/libcpuid";
     autoreconf.step.dependOn(&libtoolize.step);
 
@@ -68,18 +89,18 @@ fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, targ
     try host_str.appendSlice("--host=");
     try host_str.appendSlice(zig_triple);
 
-    const configure = b.addSystemCommand(&[_][]const u8{ "./configure", host_str.items });
+    const configure = try addUnixCommand(b, &[_][]const u8{ "./configure", host_str.items });
     configure.setEnvironmentVariable("CC", "zig cc");
     configure.cwd = "lib/libcpuid";
     configure.step.dependOn(&autoreconf.step);
 
-    const make = b.addSystemCommand(&[_][]const u8{"make"});
+    const make = try addUnixCommand(b, &[_][]const u8{"make"});
     make.cwd = "lib/libcpuid";
     make.step.dependOn(&configure.step);
 
     for (compiles) |compile| {
         compile.addIncludePath("lib/libcpuid/libcpuid");
-        compile.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid" ++ comptime build_target.staticLibSuffix());
+        compile.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid.a");
         compile.step.dependOn(&make.step);
     }
 }
@@ -115,53 +136,20 @@ fn add_tests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool)
     return main_tests;
 }
 
-fn getMsbuildPath(alloc: std.mem.Allocator) ![]const u8 {
-    const utf16_main_drive = std.os.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("SystemDrive")) orelse return error.SystemDriveNotFound;
-    const main_drive = try std.unicode.utf16leToUtf8Alloc(alloc, utf16_main_drive);
-    defer alloc.free(main_drive);
+fn addUnixCommand(b: *std.Build, argv: []const []const u8) !*std.build.Step.Run {
+    if (build_target.os.tag == .linux or build_target.os.tag.isDarwin()) {
+        return b.addSystemCommand(argv);
+    } else if (build_target.os.tag == .windows) {
+        var wsl = std.ArrayList([]const u8).init(b.allocator);
+        defer wsl.deinit();
 
-    const mvs_path = try std.fs.path.join(alloc, &[_][]const u8{
-        main_drive,
-        "Program Files",
-        "Microsoft Visual Studio",
-    });
-    defer alloc.free(mvs_path);
+        try wsl.append("wsl");
+        try wsl.appendSlice(argv);
 
-    var mvs_dir = try std.fs.openIterableDirAbsolute(mvs_path, .{});
-    defer mvs_dir.close();
-
-    // Get latest version
-    var latest_version: ?struct { u32, []const u8 } = null;
-    var mvs_iter = mvs_dir.iterate();
-    while (try mvs_iter.next()) |entry| {
-        if (entry.kind != .directory) continue;
-        const idx = std.fmt.parseUnsigned(u32, entry.name, 10) catch continue;
-        if (latest_version) |latest| {
-            if (idx < latest[0]) {
-                alloc.free(latest[1]);
-                latest_version = .{ idx, try alloc.dupe(u8, entry.name) };
-            }
-        } else {
-            latest_version = .{ idx, try alloc.dupe(u8, entry.name) };
-        }
-    }
-
-    if (latest_version) |version| {
-        // TODO use versions of VS other than "Community"
-        defer alloc.free(version[1]);
-        return std.fs.path.join(
-            alloc,
-            &[_][]const u8{
-                mvs_path,
-                version[1],
-                "Community",
-                "Msbuild",
-                "Current",
-                "Bin",
-                if (build_target.cpu.arch == .x86) "MSBuild.exe" else "amd64\\MSBuild.exe",
-            },
-        );
+        var step = b.addSystemCommand(wsl.items);
+        step.setName(argv[0]);
+        return step;
     } else {
-        return error.NotFound;
+        @compileError("unix commands cannot be executed on this platform");
     }
 }
