@@ -1,6 +1,6 @@
 const std = @import("std");
 const root = @import("../main.zig");
-const c = @cImport(@cInclude("CL/cl.h"));
+pub const c = @cImport(@cInclude("CL/cl.h"));
 const alloc = root.alloc;
 
 pub fn getDevices(devices: []root.Device) !usize {
@@ -74,13 +74,7 @@ pub fn getDevices(devices: []root.Device) !usize {
                 null,
             ));
 
-            devices[i] = .{
-                .vendor = @ptrCast([]const u8, vendor),
-                .name = @ptrCast([]const u8, name),
-                .cores = @intCast(usize, cores),
-                .backend = .OpenCl,
-                .backend_data = @ptrCast(?*anyopaque, cl_device),
-            };
+            devices[i] = .{ .OpenCl = cl_device };
         }
 
         count += cl_devices.len;
@@ -90,9 +84,28 @@ pub fn getDevices(devices: []root.Device) !usize {
     return count;
 }
 
+pub fn getDeviceInfo(info: root.Device.Info, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+    const raw_info = ucToclDeviceInfo(info);
+    if (raw_ptr) |ptr| {
+        return clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));
+    } else {
+        return clError(c.clGetDeviceInfo(device, raw_info, 0, null, raw_len));
+    }
+
+}
+
 fn clError(e: c.cl_int) !void {
     return switch (e) {
         c.CL_SUCCESS => return,
+        c.CL_OUT_OF_HOST_MEMORY => error.OutOfMemory,
         else => error.Unknown,
+    };
+}
+
+fn ucToclDeviceInfo(info: root.Device.Info) c.cl_device_info {
+    return switch (info) {
+        .VENDOR => c.CL_DEVICE_VENDOR,
+        .NAME => c.CL_DEVICE_NAME,
+        .CORES => c.CL_DEVICE_MAX_COMPUTE_UNITS
     };
 }
