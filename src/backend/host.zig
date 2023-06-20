@@ -8,29 +8,51 @@ const target: std.Target = builtin.target;
 const windows = std.os.windows;
 
 pub fn getDevices(devices: []root.Device) usize {
-    devices[0] = .{ .Host };
+    devices[0] = .{.Host};
     return 1;
 }
 
-pub fn getDeviceInfo(info: root.Device.Info, raw_ptr: ?*anyopaque, raw_len: *usize) void {
-    _ = raw_len;
-
-    if (raw_ptr) |ptr| {
-        _ = ptr;
-
-    } else {
-        switch (info) {
-
-        }
+pub fn getDeviceInfo(info: root.Device.Info, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+    switch (info) {
+        .VENDOR => getVendor(raw_ptr, raw_len),
+        .NAME => getName(raw_ptr, raw_len),
+        .CORE_COUNT => {
+            if (raw_ptr) |ptr| {
+                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = getCoreCount();
+            } else {
+                raw_len.* = @sizeOf(usize);
+            }
+        },
     }
 }
 
-fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) void {
+fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     if (raw_ptr) |ptr| {
-        _ = ptr;
-
+        if (comptime target.cpu.arch.isX86()) {
+            if (raw_len.* < 12) return error.InvalidSize;
+            const vendor = Cpuid.vendor();
+            @memcpy(@ptrCast([*]u8, ptr), &vendor);
+        }
+        @compileError("not yet implemented");
     } else {
         raw_len.* = 12;
+    }
+}
+
+fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+    if (raw_ptr) |ptr| {
+        if (comptime target.cpu.arch.isX86()) {
+            if (Cpuid.brand()) |*raw_brand| {
+                const brand = std.mem.sliceTo(raw_brand, 0);
+                if (raw_len.* < brand.len) return error.InvalidSize;
+                @memcpy(@ptrCast([*]u8, ptr), brand);
+                raw_len.* = brand.len;
+            }
+            return;
+        }
+        @compileError("not yet implemented");
+    } else {
+        raw_len.* = if (comptime target.cpu.arch.isX86()) 48 else 0;
     }
 }
 
@@ -60,7 +82,15 @@ fn getCoreCount() usize {
         var ncpus: c_int = undefined;
         var len: usize = @sizeOf(c_int);
 
-        const res = std.c.sysctl(&mib, 2, &ncpus, &len, null, 0,);
+        const res = std.c.sysctl(
+            &mib,
+            2,
+            &ncpus,
+            &len,
+            null,
+            0,
+        );
+
         return if (res != 0) 1 else @intCast(usize, ncpus);
     }
 
@@ -74,22 +104,24 @@ const Cpuid = struct {
             \\mov %[regs], %rdi
             \\mov $0, %eax
             \\cpuid
-            \\movl %ebx (%rdi)
-            \\movl %edx 4(%rdi)
-            \\movl %ecx 8(%rdi)
-            :: [regs] "r" (@ptrToInt(&regs))
+            \\movl %ebx, (%rdi)
+            \\movl %edx, 4(%rdi)
+            \\movl %ecx, 8(%rdi)
+            :
+            : [regs] "r" (@ptrToInt(&regs)),
             : "memory", "eax", "rdi"
         );
         return @bitCast([12]u8, regs);
     }
 
-    pub fn brand() ?[12*@sizeOf(u32)]u8 {
+    pub fn brand() ?[12 * @sizeOf(u32)]u8 {
         var supported: u32 = undefined;
         asm volatile (
-            \\mov $0x80000000 %eax
+            \\movl $0x80000000, %eax
             \\cpuid
-            \\movl %eax (%[sup])
-            :: [sup] "r" (@ptrToInt(&supported))
+            \\movl %eax, (%[sup])
+            :
+            : [sup] "r" (@ptrToInt(&supported)),
             : "memory", "eax"
         );
 
@@ -98,7 +130,7 @@ const Cpuid = struct {
             cpuid(0x80000002, brand_regs[0..4]);
             cpuid(0x80000003, brand_regs[4..8]);
             cpuid(0x80000004, brand_regs[8..12]);
-            return @bitCast([12*@sizeOf(u32)]u8, brand_regs);
+            return @bitCast([12 * @sizeOf(u32)]u8, brand_regs);
         }
 
         return null;
@@ -118,7 +150,8 @@ const Cpuid = struct {
                 \\movl %ecx, 8(%rdi)
                 \\movl %edx, 12(%rdi)
                 :
-                : [regs] "r" (@ptrToInt(regs)), [eax] "r" (eax)
+                : [regs] "r" (@ptrToInt(regs)),
+                  [eax] "r" (eax),
                 : "memory", "eax", "rdi"
             );
         }
@@ -126,7 +159,6 @@ const Cpuid = struct {
         @compileError("cpuid only available on x86/64");
     }
 };
-
 
 test "get cpu info" {
     var device = try std.testing.allocator.create(root.Device);

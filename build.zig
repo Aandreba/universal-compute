@@ -37,49 +37,15 @@ pub fn build(b: *std.Build) !void {
 
     // Tests
     const tests = addTests(b, target, optimize, libc);
+    const example = addExample(b, lib, target, optimize, libc);
 
     // Import libraries
-    const compiles = &[2]*std.build.Step.Compile{ lib, tests };
+    const compiles = &[_]*std.build.Step.Compile{ lib, tests, example };
     //if (libc) try build_libcpuid(b, compiles, target, submodule);
     if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
 }
 
-fn build_libcpuid(b: *std.Build, compiles: []const *std.build.Step.Compile, target: CrossTarget, submodule: *std.build.Step.Run) !void {
-    if (!target.getCpuArch().isX86()) return;
-
-    const libtoolize = b.addSystemCommand(&[_][]const u8{"libtoolize"});
-    libtoolize.cwd = "lib/libcpuid";
-    libtoolize.step.dependOn(&submodule.step);
-
-    const autoreconf = b.addSystemCommand(&[_][]const u8{ "autoreconf", "--install" });
-    autoreconf.cwd = "lib/libcpuid";
-    autoreconf.step.dependOn(&libtoolize.step);
-
-    const zig_triple = try target.linuxTriple(b.allocator);
-    defer b.allocator.free(zig_triple);
-    var host_str = std.ArrayList(u8).init(b.allocator);
-    defer host_str.deinit();
-    try host_str.appendSlice("--host=");
-    try host_str.appendSlice(zig_triple);
-
-    const configure = b.addSystemCommand(&[_][]const u8{ "./configure", host_str.items });
-    //configure.setEnvironmentVariable("CC", "zig cc");
-    configure.cwd = "lib/libcpuid";
-    configure.step.dependOn(&autoreconf.step);
-
-    const make = b.addSystemCommand(&[_][]const u8{"make"});
-    make.cwd = "lib/libcpuid";
-    make.step.dependOn(&configure.step);
-
-    for (compiles) |compile| {
-        compile.addIncludePath("lib/libcpuid/libcpuid");
-        compile.addObjectFile("lib/libcpuid/libcpuid/.libs/libcpuid.a");
-        compile.step.dependOn(&make.step);
-    }
-}
-
 fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
-    _ = submodule;
     const semver = try std.SemanticVersion.parse(raw_version);
     var version = std.ArrayList(u8).init(b.allocator);
     defer version.deinit();
@@ -88,6 +54,11 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
     // TODO non-unix include opencl headers
 
     for (compiles) |compile| {
+        if (build_target.os.tag == .windows) {
+            compile.addSystemIncludePath("lib/OpenCL-Headers/CL");
+            compile.step.dependOn(&submodule.step);
+        }
+
         compile.linkSystemLibrary("OpenCL");
         compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
     }
@@ -106,4 +77,19 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&b.addRunArtifact(main_tests).step);
     return main_tests;
+}
+
+fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
+    const example = b.addExecutable(.{
+        .name = "Example",
+        .root_source_file = .{ .path = "example/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    example.linkLibrary(lib);
+    if (libc) example.linkLibC();
+
+    const example_step = b.step("example", "Run the included example");
+    example_step.dependOn(&b.addRunArtifact(example).step);
+    return example;
 }
