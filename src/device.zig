@@ -25,11 +25,13 @@ pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: u
     return root.UC_RESULT_SUCCESS;
 }
 
-pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) void {
-    switch (self.*) {
+pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) root.uc_result_t {
+    const res = switch (self.*) {
         .Host => root.Host.getDeviceInfo(info, raw_ptr, raw_len),
         .OpenCl => |device| root.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
-    }
+    };
+    res catch |e| return root.externError(e);
+    return root.UC_RESULT_SUCCESS;
 }
 
 pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {

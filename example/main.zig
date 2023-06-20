@@ -10,7 +10,14 @@ pub fn main() !void {
     var len = devices.len;
     try uc.resultToError(uc.ucGetDevices(null, 0, devices.ptr, &len));
 
-    for (devices[0..len]) |device| {
-        std.debug.print("{}", .{uc.ucDeviceInfo(device, .NAME, null, null)});
+    for (devices[0..len]) |*device| {
+        var name_len: usize = undefined;
+        try uc.resultToError(uc.ucDeviceInfo(device, .NAME, null, &name_len));
+
+        var name = try alloc.alloc(u8, name_len);
+        defer alloc.free(name);
+        try uc.resultToError(uc.ucDeviceInfo(device, .NAME, name.ptr, &name_len));
+
+        std.debug.print("{s}", .{name[0..name_len]});
     }
 }

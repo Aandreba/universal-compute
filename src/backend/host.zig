@@ -14,8 +14,8 @@ pub fn getDevices(devices: []root.Device) usize {
 
 pub fn getDeviceInfo(info: root.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     switch (info) {
-        .VENDOR => getVendor(raw_ptr, raw_len),
-        .NAME => getName(raw_ptr, raw_len),
+        .VENDOR => try getVendor(raw_ptr, raw_len),
+        .NAME => try getName(raw_ptr, raw_len),
         .CORE_COUNT => {
             if (raw_ptr) |ptr| {
                 @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = getCoreCount();
@@ -32,8 +32,9 @@ fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
             if (raw_len.* < 12) return error.InvalidSize;
             const vendor = Cpuid.vendor();
             @memcpy(@ptrCast([*]u8, ptr), &vendor);
+        } else {
+            @compileError("not yet implemented");
         }
-        @compileError("not yet implemented");
     } else {
         raw_len.* = if (comptime target.cpu.arch.isX86()) 12 else 0;
     }
@@ -117,9 +118,10 @@ const Cpuid = struct {
     pub fn brand() ?[12 * @sizeOf(u32)]u8 {
         var supported: u32 = undefined;
         asm volatile (
+            \\mov %[sup], %rdi
             \\movl $0x80000000, %eax
             \\cpuid
-            \\movl %eax, (%[sup])
+            \\movl %eax, (%rdi)
             :
             : [sup] "r" (@ptrToInt(&supported)),
             : "memory", "eax"
@@ -127,9 +129,15 @@ const Cpuid = struct {
 
         if (supported - 0x80000000 >= 4) {
             var brand_regs: [12]u32 = undefined;
-            cpuid(0x80000002, brand_regs[0..4]);
-            cpuid(0x80000003, brand_regs[4..8]);
-            cpuid(0x80000004, brand_regs[8..12]);
+            std.debug.print("{any}\n{any}\n{any}\n", .{ brand_regs[0..], brand_regs[4..], brand_regs[8..] });
+
+            std.debug.print("1", .{});
+            cpuid(0x80000002, brand_regs[0..]);
+            std.debug.print("2", .{});
+            cpuid(0x80000003, brand_regs[4..]);
+            std.debug.print("3", .{});
+            cpuid(0x80000004, brand_regs[8..]);
+            std.debug.print("5", .{});
             return @bitCast([12 * @sizeOf(u32)]u8, brand_regs);
         }
 
@@ -137,13 +145,13 @@ const Cpuid = struct {
     }
 
     // from [libcpuid](https://github.com/anrieff/libcpuid/blob/master/libcpuid/asm-bits.c#L83)
-    inline fn cpuid(eax: u32, regs: *[4]u32) void {
+    inline fn cpuid(eax: u32, regs: [*]u32) void {
         if (comptime target.cpu.arch == .x86) {
             @compileError("not yet implemented");
         } else if (comptime target.cpu.arch == .x86_64) {
             return asm volatile (
                 \\mov %[regs], %rdi
-                \\mov [eax], %eax
+                \\mov %[eax], %eax
                 \\cpuid
                 \\movl %eax, (%rdi)
                 \\movl %ebx, 4(%rdi)
