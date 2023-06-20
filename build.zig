@@ -34,11 +34,12 @@ pub fn build(b: *std.Build) !void {
     const lib: *std.build.Step.Compile = if (static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
     if (libc) lib.linkLibC();
     lib.emit_docs = if (docs) .emit else .default;
+    //lib.emit_h = true;
     b.installArtifact(lib);
 
     // Tests
     const tests = addTests(b, target, optimize, libc);
-    const example = addExample(b, lib, target, optimize, libc);
+    const example = try addExample(b, lib, target, optimize, libc);
 
     // Import libraries
     const compiles = &[_]*std.build.Step.Compile{ lib, tests, example };
@@ -48,6 +49,22 @@ pub fn build(b: *std.Build) !void {
 
 // TODO look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
 fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
+    const Utils = struct {
+        fn getCudaPath(alloc: std.mem.Allocator) ?[]const u8 {
+            if (std.os.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("CUDA_PATH"))) |path| {
+                return switch (build_target.cpu.arch) {
+                    .x86 => std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "Win32" }),
+                    .x86_64 => std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "x64" }),
+                    else => brk: {
+                        std.debug.warn("Unsupported target");
+                        break :brk null;
+                    },
+                };
+            }
+            return null;
+        }
+    };
+
     const semver = try std.SemanticVersion.parse(raw_version);
     var version = std.ArrayList(u8).init(b.allocator);
     defer version.deinit();
@@ -55,11 +72,16 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
 
     for (compiles) |compile| {
         if (build_target.os.tag == .windows) {
-            compile.addSystemIncludePath("./lib/OpenCL-Headers");
+            compile.addIncludePath("./lib/OpenCL-Headers");
+            if (Utils.getCudaPath()) |cuda| compile.addLibraryPath(cuda);
             compile.step.dependOn(&submodule.step);
         }
 
-        compile.linkSystemLibrary("OpenCL");
+        if (compile.target.isDarwin()) {
+            compile.linkFramework("OpenCL");
+        } else {
+            compile.linkSystemLibrary("OpenCL");
+        }
         compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
     }
 }
@@ -79,9 +101,42 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
     return main_tests;
 }
 
-fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
-    const example_kernel = b.addSharedLibrary(.{ .name = "Example Kernel", .target = CrossTarget.fromTarget() });
-    _ = example_kernel;
+fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) !*std.build.Step.Compile {
+    // const kernels = try bridge.buildKernel(b, &[_]bridge.Target{.OpenCl}, .{
+    //     .name = "example",
+    //     .host_target = target,
+    //     .optimize = optimize,
+    //     .source = .{ .path = "example/kernel.zig" },
+    //     .bridge_path = "bridge/main.zig",
+    // });
+
+    const zig_lib = b.zig_lib_dir orelse brk: {
+        var zig_env = std.ChildProcess.init(&[_][]const u8{ "zig", "env" }, b.allocator);
+        defer {
+            _ = zig_env.kill() catch |e| std.debug.panic("{}", .{e});
+        }
+
+        zig_env.stdout_behavior = .Pipe;
+        zig_env.stderr_behavior = .Pipe;
+
+        var stdout = std.ArrayList(u8).init(b.allocator);
+        var stderr = std.ArrayList(u8).init(b.allocator);
+        defer {
+            stdout.deinit();
+            stderr.deinit();
+        }
+
+        try zig_env.spawn();
+        try zig_env.collectOutput(&stdout, &stderr, std.math.maxInt(usize));
+
+        const ZigEnv = struct { lib_dir: []const u8 };
+        const json = try std.json.parseFromSlice(ZigEnv, b.allocator, stdout.items, .{ .ignore_unknown_fields = true });
+        break :brk json.lib_dir;
+    };
+
+    var max_int_align = std.ArrayList(u8).init(b.allocator);
+    defer max_int_align.deinit();
+    try std.fmt.format(max_int_align.writer(), "{}", .{std.Target.maxIntAlignment(target.toTarget())});
 
     const example = b.addExecutable(.{
         .name = "Example",
@@ -91,8 +146,17 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     });
     example.linkLibrary(lib);
     if (libc) example.linkLibC();
+    example.addIncludePath(".");
+    example.defineCMacro("ZIG_TARGET_MAX_INT_ALIGNMENT", max_int_align.items);
+    example.addIncludePath(zig_lib);
+
+    const run = b.addRunArtifact(example);
+    // for (kernels) |kernel| {
+    //     run.step.dependOn(&kernel.step);
+    // }
 
     const example_step = b.step("example", "Run the included example");
-    example_step.dependOn(&b.addRunArtifact(example).step);
+    example_step.dependOn(&run.step);
+
     return example;
 }

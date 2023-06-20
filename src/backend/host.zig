@@ -8,7 +8,7 @@ const target: std.Target = builtin.target;
 const windows = std.os.windows;
 
 pub fn getDevices(devices: []root.Device) usize {
-    devices[0] = .{.Host};
+    devices[0] = .Host;
     return 1;
 }
 
@@ -35,7 +35,7 @@ fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
         }
         @compileError("not yet implemented");
     } else {
-        raw_len.* = 12;
+        raw_len.* = if (comptime target.cpu.arch.isX86()) 12 else 0;
     }
 }
 

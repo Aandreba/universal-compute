@@ -10,9 +10,8 @@ pub const Backend = enum(u32) {
     OpenCl,
     // Cuda,
     // WebGpu,
-    _,
 
-    pub fn getDeviceData(comptime self: Backend, ptr: ?*anyopaque) switch(self) {
+    pub fn getDeviceData(comptime self: Backend, ptr: ?*anyopaque) switch (self) {
         .Host => null,
         .OpenCl => OpenCl.c.cl_device_id,
     } {
@@ -26,15 +25,7 @@ pub const Backend = enum(u32) {
     pub fn getDevices(self: Backend, devices: []root.Device) !usize {
         return switch (self) {
             .Host => Host.getDevices(devices),
-            .OpenCl => OpenCl.getDevices(devices)
+            .OpenCl => OpenCl.getDevices(devices),
         };
-    }
-
-    pub fn deinitDevice(self: Backend, device: *root.Device) void {
-        _ = device;
-        switch (self) {
-            .Host => return,
-            .OpenCl => OpenCl.c.clReleaseDevice()
-        }
     }
 };
