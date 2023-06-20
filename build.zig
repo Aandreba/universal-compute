@@ -1,4 +1,5 @@
 const std = @import("std");
+const bridge = @import("bridge.zig");
 const builtin = @import("builtin");
 const build_target: std.Target = builtin.target;
 
@@ -45,17 +46,16 @@ pub fn build(b: *std.Build) !void {
     if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
 }
 
+// TODO look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
 fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
     const semver = try std.SemanticVersion.parse(raw_version);
     var version = std.ArrayList(u8).init(b.allocator);
     defer version.deinit();
     try std.fmt.format(version.writer(), "{}{}{}", .{ semver.major, semver.minor, semver.patch });
 
-    // TODO non-unix include opencl headers
-
     for (compiles) |compile| {
         if (build_target.os.tag == .windows) {
-            compile.addSystemIncludePath("lib/OpenCL-Headers/CL");
+            compile.addSystemIncludePath("./lib/OpenCL-Headers");
             compile.step.dependOn(&submodule.step);
         }
 
@@ -80,6 +80,9 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
 }
 
 fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
+    const example_kernel = b.addSharedLibrary(.{ .name = "Example Kernel", .target = CrossTarget.fromTarget() });
+    _ = example_kernel;
+
     const example = b.addExecutable(.{
         .name = "Example",
         .root_source_file = .{ .path = "example/main.zig" },
