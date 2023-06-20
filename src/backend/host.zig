@@ -12,7 +12,7 @@ pub fn getDevices(devices: []root.Device) usize {
     return 1;
 }
 
-pub fn getDeviceInfo(info: root.Device.Info, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getDeviceInfo(info: root.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     switch (info) {
         .VENDOR => getVendor(raw_ptr, raw_len),
         .NAME => getName(raw_ptr, raw_len),

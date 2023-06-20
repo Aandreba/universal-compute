@@ -29,7 +29,7 @@ pub fn getDevices(devices: []root.Device) !usize {
             @intCast(usize, num_devices),
             devices.len,
         ));
-        defer alloc.free(devices);
+        defer alloc.free(cl_devices);
 
         try clError(c.clGetDeviceIDs(
             platform,
@@ -49,10 +49,14 @@ pub fn getDevices(devices: []root.Device) !usize {
     return count;
 }
 
-pub fn getDeviceInfo(info: root.Device.Info, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getDeviceInfo(info: root.DeviceInfo, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     if (raw_ptr) |ptr| {
         switch (info) {
-            .CORE_COUNT => {},
+            .CORE_COUNT => {
+                var count: c.cl_uint = undefined;
+                try clError(c.clGetDeviceInfo(device, c.CL_DEVICE_MAX_COMPUTE_UNITS, raw_len.*, &count, null));
+                root.castOpaque(usize, ptr).* = @intCast(usize, count);
+            },
             else => {
                 const raw_info = ucToclDeviceInfo(info);
                 return clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));
@@ -143,10 +147,10 @@ pub fn externError(e: c.cl_int) root.uc_result_t {
     return root.UC_RESULT_SUCCESS;
 }
 
-fn ucToclDeviceInfo(info: root.Device.Info) c.cl_device_info {
+fn ucToclDeviceInfo(info: root.DeviceInfo) c.cl_device_info {
     return switch (info) {
         .VENDOR => c.CL_DEVICE_VENDOR,
         .NAME => c.CL_DEVICE_NAME,
-        .CORES => c.CL_DEVICE_MAX_COMPUTE_UNITS,
+        .CORE_COUNT => c.CL_DEVICE_MAX_COMPUTE_UNITS,
     };
 }

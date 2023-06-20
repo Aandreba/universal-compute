@@ -10,16 +10,26 @@ pub const Device = union(root.Backend) {
     OpenCl: OpenCl.c.cl_device_id,
 };
 
-pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: usize) root.uc_result_t {
+pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
     const backends = if (raw_backends) |raw| raw[0..backends_len] else &utils.enumList(root.Backend);
-    var devices = raw_devices[0..devices_len];
+    var devices = raw_devices[0..devices_len.*];
 
+    var count: usize = 0;
     for (backends) |backend| {
         const len = backend.getDevices(devices) catch |e| return root.externError(e);
         devices = devices[len..];
+        count += len;
     }
 
-    return 0;
+    devices_len.* = count;
+    return root.UC_RESULT_SUCCESS;
+}
+
+pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) void {
+    switch (self.*) {
+        .Host => root.Host.getDeviceInfo(info, raw_ptr, raw_len),
+        .OpenCl => |device| root.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
+    }
 }
 
 pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
@@ -29,7 +39,7 @@ pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     };
 }
 
-pub const Info = enum(usize) {
+pub const DeviceInfo = enum(usize) {
     VENDOR,
     NAME,
     CORE_COUNT,

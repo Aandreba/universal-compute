@@ -102,6 +102,7 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
 }
 
 fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) !*std.build.Step.Compile {
+    _ = lib;
     // const kernels = try bridge.buildKernel(b, &[_]bridge.Target{.OpenCl}, .{
     //     .name = "example",
     //     .host_target = target,
@@ -133,6 +134,7 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
         const json = try std.json.parseFromSlice(ZigEnv, b.allocator, stdout.items, .{ .ignore_unknown_fields = true });
         break :brk json.lib_dir;
     };
+    _ = zig_lib;
 
     var max_int_align = std.ArrayList(u8).init(b.allocator);
     defer max_int_align.deinit();
@@ -144,11 +146,10 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
         .target = target,
         .optimize = optimize,
     });
-    example.linkLibrary(lib);
     if (libc) example.linkLibC();
-    example.addIncludePath(".");
-    example.defineCMacro("ZIG_TARGET_MAX_INT_ALIGNMENT", max_int_align.items);
-    example.addIncludePath(zig_lib);
+    example.addModule("uc", b.createModule(.{
+        .source_file = .{ .path = "src/main.zig" },
+    }));
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {

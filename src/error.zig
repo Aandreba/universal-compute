@@ -24,3 +24,9 @@ pub export fn ucErrorName(e: uc_result_t, raw_name: [*]u8, name_len: usize) usiz
 pub fn externError(e: anyerror) uc_result_t {
     return -@intCast(uc_result_t, @errorToInt(e));
 }
+
+pub fn resultToError(res: uc_result_t) !void {
+    const e = @intCast(raw_errot_t, -res);
+    if (e >= 0) return;
+    return @intToError(e);
+}
