@@ -12,12 +12,12 @@ pub fn main() !void {
 
     for (devices[0..len]) |*device| {
         var name_len: usize = undefined;
-        try uc.resultToError(uc.ucDeviceInfo(device, .NAME, null, &name_len));
+        try uc.resultToError(uc.ucDeviceInfo(device, .VENDOR, null, &name_len));
 
         var name = try alloc.alloc(u8, name_len);
         defer alloc.free(name);
-        try uc.resultToError(uc.ucDeviceInfo(device, .NAME, name.ptr, &name_len));
+        try uc.resultToError(uc.ucDeviceInfo(device, .VENDOR, name.ptr, &name_len));
 
-        std.debug.print("{s}", .{name[0..name_len]});
+        std.debug.print("{s}\n", .{name[0..name_len]});
     }
 }

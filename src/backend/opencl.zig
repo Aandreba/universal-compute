@@ -35,7 +35,7 @@ pub fn getDevices(devices: []root.Device) !usize {
             platform,
             c.CL_DEVICE_TYPE_ALL,
             @intCast(c.cl_uint, cl_devices.len),
-            @ptrCast([*]c.cl_device_id, devices),
+            @ptrCast([*]c.cl_device_id, cl_devices),
             null,
         ));
 
@@ -59,7 +59,6 @@ pub fn getDeviceInfo(info: root.DeviceInfo, device: c.cl_device_id, raw_ptr: ?*a
             },
             else => {
                 const raw_info = ucToclDeviceInfo(info);
-                std.debug.print("{}\n", .{raw_info});
                 return clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));
             },
         }

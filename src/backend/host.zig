@@ -129,15 +129,9 @@ const Cpuid = struct {
 
         if (supported - 0x80000000 >= 4) {
             var brand_regs: [12]u32 = undefined;
-            std.debug.print("{any}\n{any}\n{any}\n", .{ brand_regs[0..], brand_regs[4..], brand_regs[8..] });
-
-            std.debug.print("1", .{});
             cpuid(0x80000002, brand_regs[0..]);
-            std.debug.print("2", .{});
             cpuid(0x80000003, brand_regs[4..]);
-            std.debug.print("3", .{});
             cpuid(0x80000004, brand_regs[8..]);
-            std.debug.print("5", .{});
             return @bitCast([12 * @sizeOf(u32)]u8, brand_regs);
         }
 
@@ -145,7 +139,7 @@ const Cpuid = struct {
     }
 
     // from [libcpuid](https://github.com/anrieff/libcpuid/blob/master/libcpuid/asm-bits.c#L83)
-    inline fn cpuid(eax: u32, regs: [*]u32) void {
+    fn cpuid(eax: u32, regs: [*]u32) void {
         if (comptime target.cpu.arch == .x86) {
             @compileError("not yet implemented");
         } else if (comptime target.cpu.arch == .x86_64) {
