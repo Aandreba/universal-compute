@@ -5,6 +5,8 @@ const utils = @import("utils.zig");
 const alloc = utils.alloc;
 const OpenCl = root.OpenCl;
 
+pub const uc_device_t = extern struct { _: [@sizeOf(Device)]u8 align(@alignOf(Device)) };
+
 pub const Device = union(root.Backend) {
     Host: void,
     OpenCl: OpenCl.c.cl_device_id,
@@ -45,4 +47,6 @@ pub const DeviceInfo = enum(usize) {
     VENDOR,
     NAME,
     CORE_COUNT,
+    // in MHz
+    MAX_FREQUENCY,
 };

@@ -23,6 +23,13 @@ pub fn getDeviceInfo(info: root.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usiz
                 raw_len.* = @sizeOf(usize);
             }
         },
+        .MAX_FREQUENCY => {
+            if (raw_ptr) |ptr| {
+                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = getMaxFrequency();
+            } else {
+                raw_len.* = @sizeOf(usize);
+            }
+        },
     }
 }
 
@@ -95,6 +102,10 @@ fn getCoreCount() usize {
         return if (res != 0) 1 else @intCast(usize, ncpus);
     }
 
+    @compileError("not yet implemented");
+}
+
+fn getMaxFrequency() usize {
     @compileError("not yet implemented");
 }
 

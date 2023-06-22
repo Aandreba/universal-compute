@@ -50,23 +50,23 @@ pub fn getDevices(devices: []root.Device) !usize {
 }
 
 pub fn getDeviceInfo(info: root.DeviceInfo, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+    const raw_info = ucToclDeviceInfo(info);
     if (raw_ptr) |ptr| {
         switch (info) {
-            .CORE_COUNT => {
+            // c.cl_uint --> usize
+            .CORE_COUNT, .MAX_FREQUENCY => {
                 var count: c.cl_uint = undefined;
-                try clError(c.clGetDeviceInfo(device, c.CL_DEVICE_MAX_COMPUTE_UNITS, raw_len.*, &count, null));
+                try clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, &count, null));
                 root.castOpaque(usize, ptr).* = @intCast(usize, count);
             },
             else => {
-                const raw_info = ucToclDeviceInfo(info);
                 return clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));
             },
         }
     } else {
         switch (info) {
-            .CORE_COUNT => raw_len.* = @sizeOf(usize),
+            .CORE_COUNT, .MAX_FREQUENCY => raw_len.* = @sizeOf(usize),
             else => {
-                const raw_info = ucToclDeviceInfo(info);
                 return clError(c.clGetDeviceInfo(device, raw_info, 0, null, raw_len));
             },
         }
@@ -152,5 +152,6 @@ fn ucToclDeviceInfo(info: root.DeviceInfo) c.cl_device_info {
         .VENDOR => c.CL_DEVICE_VENDOR,
         .NAME => c.CL_DEVICE_NAME,
         .CORE_COUNT => c.CL_DEVICE_MAX_COMPUTE_UNITS,
+        .MAX_FREQUENCY => c.CL_DEVICE_MAX_CLOCK_FREQUENCY,
     };
 }

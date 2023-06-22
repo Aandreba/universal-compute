@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) !void {
     const lib: *std.build.Step.Compile = if (static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
     if (libc) lib.linkLibC();
     lib.emit_docs = if (docs) .emit else .default;
-    //lib.emit_h = true;
+    lib.emit_h = true;
     b.installArtifact(lib);
 
     // Tests
