@@ -1,3 +1,6 @@
 [submodule "lib/OpenCL-Headers"]
 	path = lib/OpenCL-Headers
 	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+[submodule "lib/zigrc"]
+	path = lib/zigrc
+	url = https://github.com/Aandreba/zigrc.git
