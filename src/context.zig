@@ -2,17 +2,23 @@ const std = @import("std");
 const root = @import("main.zig");
 
 pub const Host = @import("context/host.zig");
-//pub const OpenCl = @import("context/opencl.zig");
+pub const OpenCl = @import("context/opencl.zig");
+
+comptime {
+    std.debug.assert(@sizeOf(Context) == 3 * @sizeOf(usize));
+    std.debug.assert(@alignOf(Context) == @alignOf(usize));
+}
 
 pub const Context = union(root.backend.Kind) {
     Host: Host.Context,
-    OpenCl: @compileError("todo"),
+    OpenCl: OpenCl.Context,
 };
 
-pub export fn ucCreateContext(device: *root.device.Device, config: *const ContextConfig) root.uc_result_t {
-    _ = config;
-    _ = device;
-    // TODO
+pub export fn ucCreateContext(device: *root.device.Device, config: *const ContextConfig, context: *Context) root.uc_result_t {
+    context.* = switch (device) {
+        .Host => Host.create(),
+        .OpenCl => |cl_device| OpenCl.create(cl_device, config),
+    } catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
 }
 

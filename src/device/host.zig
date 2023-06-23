@@ -19,7 +19,7 @@ pub fn getDeviceInfo(info: root.device.DeviceInfo, raw_ptr: ?*anyopaque, raw_len
         .NAME => try getName(raw_ptr, raw_len),
         .CORE_COUNT => {
             if (raw_ptr) |ptr| {
-                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = getCoreCount();
+                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = try getCoreCount();
             } else {
                 raw_len.* = @sizeOf(usize);
             }
@@ -34,7 +34,7 @@ pub fn getDeviceInfo(info: root.device.DeviceInfo, raw_ptr: ?*anyopaque, raw_len
     }
 }
 
-fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     if (raw_ptr) |ptr| {
         if (comptime target.cpu.arch.isX86()) {
             if (raw_len.* < 12) return error.InvalidSize;
@@ -48,7 +48,7 @@ fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     }
 }
 
-fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     if (raw_ptr) |ptr| {
         if (comptime target.cpu.arch.isX86()) {
             if (Cpuid.brand()) |*raw_brand| {
@@ -65,45 +65,9 @@ fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     }
 }
 
-fn getCoreCount() usize {
-    if (comptime builtin.single_threaded) {
-        return 1;
-    } else if (comptime target.os.tag == .windows) {
-        // TESTED
-        var info: windows.SYSTEM_INFO = undefined;
-        windows.kernel32.GetSystemInfo(&info);
-        return @intCast(usize, info.dwNumberOfProcessors);
-    } else if (comptime target.os.tag == .linux) {
-        // TESTED
-        const c = @cImport({
-            @cInclude("sys/sysinfo.h");
-            @cInclude("unistd.h");
-        });
-
-        return @intCast(usize, c.sysconf(c._SC_NPROCESSORS_ONLN));
-    } else if (comptime target.os.tag == .haiku) {
-        var info: std.c.system_info = undefined;
-        return if (std.c.get_system_info(&info) != 0) 1 else info.cpu_count;
-    } else if (comptime target.os.tag.isBSD()) {
-        const c = @cImport(@cInclude("sys/sysctl.h"));
-
-        const mib = [2]c_int{ c.CTL_HW, c.HW_NCPU };
-        var ncpus: c_int = undefined;
-        var len: usize = @sizeOf(c_int);
-
-        const res = std.c.sysctl(
-            &mib,
-            2,
-            &ncpus,
-            &len,
-            null,
-            0,
-        );
-
-        return if (res != 0) 1 else @intCast(usize, ncpus);
-    }
-
-    @compileError("not yet implemented");
+pub fn getCoreCount() !usize {
+    if (comptime builtin.single_threaded) return 1;
+    return std.Thread.getCpuCount();
 }
 
 // TODO

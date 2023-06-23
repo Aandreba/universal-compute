@@ -1,12 +1,15 @@
 const std = @import("std");
 const root = @import("main.zig");
 const utils = @import("utils.zig");
+const alloc = utils.alloc;
 
 pub const Host = @import("device/host.zig");
 pub const OpenCl = @import("device/opencl.zig");
 
-const alloc = utils.alloc;
-//const Arc = @import("zigrc").Arc;
+comptime {
+    std.debug.assert(@sizeOf(Device) == 2 * @sizeOf(usize));
+    std.debug.assert(@alignOf(Device) == @alignOf(usize));
+}
 
 pub const Device = union(root.backend.Kind) {
     Host: void,
