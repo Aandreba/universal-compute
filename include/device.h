@@ -18,8 +18,8 @@ typedef size_t uc_device_info;
 #define UC_DEVICE_INFO_MAX_FREQUENCY 4
 
 zig_extern uc_alloc_layout_t ucGetDeviceLayout();
-zig_extern uc_result_t ucGetDevices(const uc_backend *backends, size_t const backend_len, uc_device *devices, size_t *devices_len);
-zig_extern uc_result_t ucDeviceInfo(const uc_device *device, const uc_device_info info, void *data, size_t *len);
-zig_extern uc_result_t ucDeviceDeinit(uc_device *device);
+zig_extern uc_result ucGetDevices(const uc_backend *backends, size_t const backend_len, uc_device *devices, size_t *devices_len);
+zig_extern uc_result ucDeviceInfo(const uc_device *device, const uc_device_info info, void *data, size_t *len);
+zig_extern uc_result ucDeviceDeinit(uc_device *device);
 
 #endif

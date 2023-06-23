@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <universal-compute.h>
 
-void errorHandler(uc_result_t res) {
+void errorHandler(uc_result res) {
     if (res < 0) {
         printf("Error: %s", (const char *)ucErrorName(res));
         exit(1);

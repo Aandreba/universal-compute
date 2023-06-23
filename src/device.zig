@@ -2,9 +2,11 @@ const std = @import("std");
 const root = @import("main.zig");
 const utils = @import("utils.zig");
 
+pub const Host = @import("device/host.zig");
+pub const OpenCl = @import("device/opencl.zig");
+
 const alloc = utils.alloc;
-const OpenCl = root.backend.OpenCl;
-const Arc = @import("zigrc").Arc;
+//const Arc = @import("zigrc").Arc;
 
 pub const Device = union(root.backend.Kind) {
     Host: void,

@@ -20,6 +20,12 @@ typedef char bool;
 #define zig_extern extern
 #endif
 
+#if defined(__has_attribute)
+#define zig_has_attribute(attribute) __has_attribute(attribute)
+#else
+#define zig_has_attribute(attribute) 0
+#endif
+
 #if __STDC_VERSION__ >= 201112L
 #define zig_align(alignment) _Alignas(alignment)
 #elif zig_has_attribute(aligned)
