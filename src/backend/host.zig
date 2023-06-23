@@ -14,6 +14,7 @@ pub fn getDevices(devices: []root.Device) usize {
 
 pub fn getDeviceInfo(info: root.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     switch (info) {
+        .BACKEND => unreachable,
         .VENDOR => try getVendor(raw_ptr, raw_len),
         .NAME => try getName(raw_ptr, raw_len),
         .CORE_COUNT => {
@@ -105,8 +106,9 @@ fn getCoreCount() usize {
     @compileError("not yet implemented");
 }
 
+// TODO
 fn getMaxFrequency() usize {
-    @compileError("not yet implemented");
+    return 12000;
 }
 
 const Cpuid = struct {

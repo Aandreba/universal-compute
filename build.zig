@@ -6,6 +6,12 @@ const build_target: std.Target = builtin.target;
 const CrossTarget = std.zig.CrossTarget;
 const Optimize = std.builtin.Mode;
 
+pub const Linkage = enum {
+    static,
+    shared,
+    dynamic,
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -26,15 +32,16 @@ pub fn build(b: *std.Build) !void {
 
     // Flags and options
     const docs = b.option(bool, "docs", "Generate docs (defaults to false)") orelse false;
-    const static = b.option(bool, "static", "Compile as static library, otherwise compile as shared library (defaults to false)") orelse false;
+    const linkage = b.option(Linkage, "linkage", "Defines the linkage type for the library (defaults to static)") orelse .static;
     const libc = b.option(bool, "libc", "Links libc to the output library (defaults to true)") orelse true;
     const opencl = b.option([]const u8, "opencl", "Add OpenCL backend with the specified OpenCL version (defaults to null)") orelse null;
 
     // Library
-    const lib: *std.build.Step.Compile = if (static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
+    const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
     if (libc) lib.linkLibC();
+    lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;
-    lib.emit_h = true;
+    //lib.emit_h = true;
     b.installArtifact(lib);
 
     // Tests
@@ -47,7 +54,7 @@ pub fn build(b: *std.Build) !void {
     if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
 }
 
-// TODO look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
+// look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
 fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
     const Utils = struct {
         fn getCudaPath(alloc: std.mem.Allocator) ?[]const u8 {
@@ -82,6 +89,7 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
         } else {
             compile.linkSystemLibrary("OpenCL");
         }
+
         compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
     }
 }

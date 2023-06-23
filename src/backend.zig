@@ -2,8 +2,6 @@ const root = @import("main.zig");
 
 pub const Host = @import("backend/host.zig");
 pub const OpenCl = @import("backend/opencl.zig");
-pub const Cuda = @import("backend/cuda.zig");
-pub const WebGpu = @import("backend/webgpu.zig");
 
 pub const Backend = enum(u32) {
     Host,

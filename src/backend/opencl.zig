@@ -149,6 +149,7 @@ pub fn externError(e: c.cl_int) root.uc_result_t {
 
 fn ucToclDeviceInfo(info: root.DeviceInfo) c.cl_device_info {
     return switch (info) {
+        .BACKEND => unreachable,
         .VENDOR => c.CL_DEVICE_VENDOR,
         .NAME => c.CL_DEVICE_NAME,
         .CORE_COUNT => c.CL_DEVICE_MAX_COMPUTE_UNITS,

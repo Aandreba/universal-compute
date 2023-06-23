@@ -5,8 +5,6 @@ const utils = @import("utils.zig");
 const alloc = utils.alloc;
 const OpenCl = root.OpenCl;
 
-pub const uc_device_t = extern struct { _: [@sizeOf(Device)]u8 align(@alignOf(Device)) };
-
 pub const Device = union(root.Backend) {
     Host: void,
     OpenCl: OpenCl.c.cl_device_id,
@@ -27,7 +25,16 @@ pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: u
     return root.UC_RESULT_SUCCESS;
 }
 
-pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) root.uc_result_t {
+pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: ?*usize) root.uc_result_t {
+    if (info == .BACKEND) {
+        if (raw_ptr) |ptr| {
+            if (raw_len) |len| if (len.* < @sizeOf(root.Backend)) return root.externError(error.InvalidSize);
+            root.castOpaque(root.Backend, ptr).* = @as(root.Backend, self.*);
+        }
+        if (raw_len) |len| len.* = @sizeOf(root.Backend);
+        return root.UC_RESULT_SUCCESS;
+    }
+
     const res = switch (self.*) {
         .Host => root.Host.getDeviceInfo(info, raw_ptr, raw_len),
         .OpenCl => |device| root.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
@@ -43,7 +50,8 @@ pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     };
 }
 
-pub const DeviceInfo = enum(usize) {
+pub const DeviceInfo = enum(u32) {
+    BACKEND,
     VENDOR,
     NAME,
     CORE_COUNT,
