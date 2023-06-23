@@ -8,10 +8,18 @@ pub usingnamespace @import("error.zig");
 
 pub export const UC_DEVICE_SIZE: usize = @sizeOf(device.Device);
 
+pub const AllocLayout = extern struct {
+    size: usize,
+    @"align": usize,
+
+    pub fn init(comptime T: type) AllocLayout {
+        return .{
+            .size = @sizeOf(T),
+            .@"align" = @alignOf(T),
+        };
+    }
+};
+
 pub fn castOpaque(comptime T: type, ptr: *anyopaque) *T {
     return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
-}
-
-fn COpaque(comptime T: type) type {
-    return extern struct { [@sizeOf(T)]u8 align(@alignOf(T)) };
 }

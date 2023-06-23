@@ -5,6 +5,7 @@ const build_target: std.Target = builtin.target;
 
 const CrossTarget = std.zig.CrossTarget;
 const Optimize = std.builtin.Mode;
+const ModuleEntry = struct { []const u8, *std.Build.Module };
 
 pub const Linkage = enum {
     static,
@@ -29,6 +30,7 @@ pub fn build(b: *std.Build) !void {
 
     // Fetch submodules
     const submodule = b.addSystemCommand(&[_][]const u8{ "git", "submodule", "update", "--init", "--remote" });
+    const zigrc = b.createModule(.{ .source_file = .{ .path = "lib/zigrc/src/main.zig" } });
 
     // Flags and options
     const docs = b.option(bool, "docs", "Generate docs (defaults to false)") orelse false;
@@ -41,7 +43,6 @@ pub fn build(b: *std.Build) !void {
     if (libc) lib.linkLibC();
     lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;
-    lib.emit_h = true;
     b.installArtifact(lib);
 
     // Tests
@@ -50,8 +51,20 @@ pub fn build(b: *std.Build) !void {
 
     // Import libraries
     const compiles = &[_]*std.build.Step.Compile{ lib, tests, example };
+    addModules(compiles, submodule, &[_]ModuleEntry{
+        .{ "zigrc", zigrc },
+    });
     //if (libc) try build_libcpuid(b, compiles, target, submodule);
     if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
+}
+
+fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.Step.Run, modules: []const ModuleEntry) void {
+    for (compiles) |compile| {
+        for (modules) |module| {
+            compile.addModule(module[0], module[1]);
+        }
+        if (submodule) |sm| compile.step.dependOn(&sm.step);
+    }
 }
 
 // look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
@@ -146,7 +159,7 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     if (libc) example.linkLibC();
     example.addCSourceFile("example/main.c", &[_][]const u8{});
     example.addIncludePath(zig_lib);
-    example.addIncludePath(".");
+    example.addIncludePath("include");
     example.step.dependOn(&lib.step);
 
     const run = b.addRunArtifact(example);

@@ -3,9 +3,12 @@
     "C_Cpp.default.includePath": [
         "/home/aandreba/zig/master/files/lib",
         "${default}",
-        "."
+        "include"
     ],
     "files.associations": {
-        "universal-compute.h": "c"
+        "universal-compute.h": "c",
+        "*.inc": "c",
+        "zig.h": "c",
+        "typeinfo": "cpp"
     }
 }

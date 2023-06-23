@@ -16,11 +16,8 @@ pub const UC_RESULT_INVALID_SIZE: uc_result_t = externError(error.InvalidSize);
 //     return undefined;
 // }
 
-pub export fn ucErrorName(e: uc_result_t, raw_name: [*]u8, name_len: usize) usize {
-    const err_name = if (e >= 0) "Success" else @errorName(@intToError(@intCast(raw_errot_t, -e)));
-    const len = std.math.min(err_name.len, name_len);
-    @memcpy(raw_name[0..len], err_name[0..len]);
-    return len;
+pub export fn ucErrorName(e: uc_result_t) [*:0]const u8 {
+    return if (e >= 0) "Success" else @errorName(@intToError(@intCast(raw_errot_t, -e)));
 }
 
 pub export fn ucErrorHasName(e: uc_result_t, raw_name: [*]const u8, name_len: usize) bool {
