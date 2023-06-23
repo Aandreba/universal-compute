@@ -9,6 +9,16 @@
         "universal-compute.h": "c",
         "*.inc": "c",
         "zig.h": "c",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "device.h": "c",
+        "error.h": "c",
+        "utils.h": "c",
+        "stdint.h": "c",
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "any": "c",
+        "atomic": "c",
+        "memory_resource": "c",
+        "type_traits": "c"
     }
 }

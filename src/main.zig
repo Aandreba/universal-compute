@@ -5,8 +5,9 @@ pub const context = @import("context.zig");
 
 pub usingnamespace @import("utils.zig");
 pub usingnamespace @import("error.zig");
-
-pub export const UC_DEVICE_SIZE: usize = @sizeOf(device.Device);
+usingnamespace backend;
+usingnamespace device;
+usingnamespace context;
 
 pub const AllocLayout = extern struct {
     size: usize,

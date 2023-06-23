@@ -123,30 +123,6 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
 }
 
 fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) !*std.build.Step.Compile {
-    const zig_lib = b.zig_lib_dir orelse brk: {
-        var zig_env = std.ChildProcess.init(&[_][]const u8{ "zig", "env" }, b.allocator);
-        defer {
-            _ = zig_env.kill() catch |e| std.debug.panic("{}", .{e});
-        }
-
-        zig_env.stdout_behavior = .Pipe;
-        zig_env.stderr_behavior = .Pipe;
-
-        var stdout = std.ArrayList(u8).init(b.allocator);
-        var stderr = std.ArrayList(u8).init(b.allocator);
-        defer {
-            stdout.deinit();
-            stderr.deinit();
-        }
-
-        try zig_env.spawn();
-        try zig_env.collectOutput(&stdout, &stderr, std.math.maxInt(usize));
-
-        const ZigEnv = struct { lib_dir: []const u8 };
-        const json = try std.json.parseFromSlice(ZigEnv, b.allocator, stdout.items, .{ .ignore_unknown_fields = true });
-        break :brk json.lib_dir;
-    };
-
     var max_int_align = std.ArrayList(u8).init(b.allocator);
     defer max_int_align.deinit();
     try std.fmt.format(max_int_align.writer(), "{}", .{std.Target.maxIntAlignment(target.toTarget())});
@@ -157,10 +133,10 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
         .optimize = optimize,
     });
     if (libc) example.linkLibC();
-    example.addCSourceFile("example/main.c", &[_][]const u8{});
-    example.addIncludePath(zig_lib);
+    example.addCSourceFile("example/main.c", &[_][]const u8{"-std=c11"});
     example.addIncludePath("include");
-    example.step.dependOn(&lib.step);
+    example.c_std = .C11;
+    example.linkLibrary(lib);
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {

@@ -1,15 +1,25 @@
-#include <zig.h>
+#ifndef __UC_DEVICE
+#define __UC_DEVICE
 
 #include "error.h"
 #include "utils.h"
 
-uc_opaque(uc_device_t);
-typedef unsigned int uc_backend_t;
+uc_opaque(uc_device, 2 * sizeof(size_t), sizeof(size_t));
 
+typedef size_t uc_backend;
 #define UC_BACKEND_HOST 0
 #define UC_BACKEND_OPENCL 1
 
+typedef size_t uc_device_info;
+#define UC_DEVICE_INFO_BACKEND 0
+#define UC_DEVICE_INFO_VENDOR 1
+#define UC_DEVICE_INFO_NAME 2
+#define UC_DEVICE_INFO_CORE_COUNT 3
+#define UC_DEVICE_INFO_MAX_FREQUENCY 4
+
 zig_extern uc_alloc_layout_t ucGetDeviceLayout();
-zig_extern uc_result_t ucGetDevices(const uc_backend_t *backends, size_t const backend_len, uc_device_t *devices, size_t *devices_len);
-zig_extern uc_result_t ucDeviceInfo(const uc_device_t *device, uint32_t const a1, void *const a2, uintptr_t *const a3);
-zig_extern uc_result_t ucDeviceDeinit(uc_device_t *device);
+zig_extern uc_result_t ucGetDevices(const uc_backend *backends, size_t const backend_len, uc_device *devices, size_t *devices_len);
+zig_extern uc_result_t ucDeviceInfo(const uc_device *device, const uc_device_info info, void *data, size_t *len);
+zig_extern uc_result_t ucDeviceDeinit(uc_device *device);
+
+#endif

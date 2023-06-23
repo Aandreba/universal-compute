@@ -7,6 +7,7 @@ pub const UC_RESULT_SUCCESS: uc_result_t = 0;
 pub const UC_RESULT_OUT_OF_MEMORY: uc_result_t = externError(error.OutOfMemory);
 pub const UC_RESULT_INVALID_SIZE: uc_result_t = externError(error.InvalidSize);
 
+const SUCCESS = "Success";
 // pub export fn ucErrorFromName(raw_name: [*]const u8, name_len: usize, is_valid: ?*bool) uc_error_t {
 //     if (std.meta.stringToEnum(anyerror, raw_name[0..name_len])) |err| {
 //         if (is_valid) |valid| valid.* = true;
@@ -17,7 +18,8 @@ pub const UC_RESULT_INVALID_SIZE: uc_result_t = externError(error.InvalidSize);
 // }
 
 pub export fn ucErrorName(e: uc_result_t) [*:0]const u8 {
-    return if (e >= 0) "Success" else @errorName(@intToError(@intCast(raw_errot_t, -e)));
+    resultToError(e) catch |err| return @errorName(err).ptr;
+    return SUCCESS;
 }
 
 pub export fn ucErrorHasName(e: uc_result_t, raw_name: [*]const u8, name_len: usize) bool {

@@ -1,4 +1,18 @@
+#ifndef __UC_UTILS
+#define __UC_UTILS
+
 #include <stdint.h>
+#include <unistd.h>
+
+#if !defined(__cplusplus) && __STDC_VERSION__ <= 201710L
+#if __STDC_VERSION__ >= 199901L
+#include <stdbool.h>
+#else
+typedef char bool;
+#define false 0
+#define true 1
+#endif
+#endif
 
 #if defined(__cplusplus)
 #define zig_extern extern "C"
@@ -6,9 +20,25 @@
 #define zig_extern extern
 #endif
 
-#define uc_opaque(name) typedef struct name name
+#if __STDC_VERSION__ >= 201112L
+#define zig_align(alignment) _Alignas(alignment)
+#elif zig_has_attribute(aligned)
+#define zig_align(alignment) __attribute__((aligned(alignment)))
+#elif _MSC_VER
+#define zig_align(alignment) __declspec(align(alignment))
+#else
+#define zig_align zig_align_unavailable
+#endif
 
-typedef struct {
+// #define uc_opaque(name) typedef struct name name
+#define uc_opaque(name, size, align)      \
+    typedef struct name {                 \
+        uint8_t zig_align(align) _[size]; \
+    } name;
+
+typedef struct uc_alloc_layout_t {
     size_t size;
     size_t align;
 } uc_alloc_layout_t;
+
+#endif

@@ -55,11 +55,11 @@ pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     };
 }
 
-pub const DeviceInfo = enum(c_int) {
-    BACKEND,
-    VENDOR,
-    NAME,
-    CORE_COUNT,
+pub const DeviceInfo = enum(usize) {
+    BACKEND = 0,
+    VENDOR = 1,
+    NAME = 2,
+    CORE_COUNT = 3,
     // in MHz
-    MAX_FREQUENCY,
+    MAX_FREQUENCY = 4,
 };
