@@ -2,6 +2,10 @@
     "cmake.configureOnOpen": false,
     "C_Cpp.default.includePath": [
         "/home/aandreba/zig/master/files/lib",
-        "${default}"
-    ]
+        "${default}",
+        "."
+    ],
+    "files.associations": {
+        "universal-compute.h": "c"
+    }
 }

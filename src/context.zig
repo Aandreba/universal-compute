@@ -2,9 +2,9 @@ const std = @import("std");
 const root = @import("main.zig");
 const Context = @This();
 
-device: root.Device,
+device: root.device.Device,
 
-pub export fn ucCreateContext(device: *root.Device, options: *const ContextOptions) root.uc_result_t {
+pub export fn ucCreateContext(device: *root.device.Device, options: *const ContextOptions) root.uc_result_t {
     _ = options;
     _ = device;
     // TODO

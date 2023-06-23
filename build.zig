@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) !void {
     if (libc) lib.linkLibC();
     lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;
-    //lib.emit_h = true;
+    lib.emit_h = true;
     b.installArtifact(lib);
 
     // Tests
@@ -110,15 +110,6 @@ fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) 
 }
 
 fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, optimize: Optimize, libc: bool) !*std.build.Step.Compile {
-    _ = lib;
-    // const kernels = try bridge.buildKernel(b, &[_]bridge.Target{.OpenCl}, .{
-    //     .name = "example",
-    //     .host_target = target,
-    //     .optimize = optimize,
-    //     .source = .{ .path = "example/kernel.zig" },
-    //     .bridge_path = "bridge/main.zig",
-    // });
-
     const zig_lib = b.zig_lib_dir orelse brk: {
         var zig_env = std.ChildProcess.init(&[_][]const u8{ "zig", "env" }, b.allocator);
         defer {
@@ -142,7 +133,6 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
         const json = try std.json.parseFromSlice(ZigEnv, b.allocator, stdout.items, .{ .ignore_unknown_fields = true });
         break :brk json.lib_dir;
     };
-    _ = zig_lib;
 
     var max_int_align = std.ArrayList(u8).init(b.allocator);
     defer max_int_align.deinit();
@@ -150,14 +140,14 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
 
     const example = b.addExecutable(.{
         .name = "Example",
-        .root_source_file = .{ .path = "example/main.zig" },
         .target = target,
         .optimize = optimize,
     });
     if (libc) example.linkLibC();
-    example.addModule("uc", b.createModule(.{
-        .source_file = .{ .path = "src/main.zig" },
-    }));
+    example.addCSourceFile("example/main.c", &[_][]const u8{});
+    example.addIncludePath(zig_lib);
+    example.addIncludePath(".");
+    example.step.dependOn(&lib.step);
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {

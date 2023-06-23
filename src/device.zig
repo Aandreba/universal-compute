@@ -3,15 +3,15 @@ const root = @import("main.zig");
 const utils = @import("utils.zig");
 
 const alloc = utils.alloc;
-const OpenCl = root.OpenCl;
+const OpenCl = root.backend.OpenCl;
 
-pub const Device = union(root.Backend) {
+pub const Device = union(root.backend.Kind) {
     Host: void,
     OpenCl: OpenCl.c.cl_device_id,
 };
 
-pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
-    const backends = if (raw_backends) |raw| raw[0..backends_len] else &utils.enumList(root.Backend);
+pub export fn ucGetDevices(raw_backends: ?[*]const root.backend.Kind, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
+    const backends = if (raw_backends) |raw| raw[0..backends_len] else &utils.enumList(root.backend.Kind);
     var devices = raw_devices[0..devices_len.*];
 
     var count: usize = 0;
@@ -25,19 +25,19 @@ pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: u
     return root.UC_RESULT_SUCCESS;
 }
 
-pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: ?*usize) root.uc_result_t {
+pub export fn ucDeviceInfo(self: *Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) root.uc_result_t {
     if (info == .BACKEND) {
         if (raw_ptr) |ptr| {
-            if (raw_len) |len| if (len.* < @sizeOf(root.Backend)) return root.externError(error.InvalidSize);
-            root.castOpaque(root.Backend, ptr).* = @as(root.Backend, self.*);
+            if (raw_len.* < @sizeOf(root.backend.Kind)) return root.externError(error.InvalidSize);
+            root.castOpaque(root.backend.Kind, ptr).* = @as(root.backend.Kind, self.*);
         }
-        if (raw_len) |len| len.* = @sizeOf(root.Backend);
+        raw_len.* = @sizeOf(root.backend.Kind);
         return root.UC_RESULT_SUCCESS;
     }
 
     const res = switch (self.*) {
-        .Host => root.Host.getDeviceInfo(info, raw_ptr, raw_len),
-        .OpenCl => |device| root.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
+        .Host => root.backend.Host.getDeviceInfo(info, raw_ptr, raw_len),
+        .OpenCl => |device| root.backend.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;

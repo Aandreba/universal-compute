@@ -3,7 +3,7 @@ const root = @import("../main.zig");
 pub const c = @cImport(@cInclude("CL/cl.h"));
 const alloc = root.alloc;
 
-pub fn getDevices(devices: []root.Device) !usize {
+pub fn getDevices(devices: []root.device.Device) !usize {
     // Platforms
     var num_platforms: c.cl_uint = 0;
     try clError(c.clGetPlatformIDs(0, null, &num_platforms));
@@ -49,7 +49,7 @@ pub fn getDevices(devices: []root.Device) !usize {
     return count;
 }
 
-pub fn getDeviceInfo(info: root.DeviceInfo, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getDeviceInfo(info: root.device.DeviceInfo, device: c.cl_device_id, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     const raw_info = ucToclDeviceInfo(info);
     if (raw_ptr) |ptr| {
         switch (info) {
@@ -147,7 +147,7 @@ pub fn externError(e: c.cl_int) root.uc_result_t {
     return root.UC_RESULT_SUCCESS;
 }
 
-fn ucToclDeviceInfo(info: root.DeviceInfo) c.cl_device_info {
+fn ucToclDeviceInfo(info: root.device.DeviceInfo) c.cl_device_info {
     return switch (info) {
         .BACKEND => unreachable,
         .VENDOR => c.CL_DEVICE_VENDOR,

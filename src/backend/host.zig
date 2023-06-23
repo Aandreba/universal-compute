@@ -7,12 +7,12 @@ const alloc = utils.alloc;
 const target: std.Target = builtin.target;
 const windows = std.os.windows;
 
-pub fn getDevices(devices: []root.Device) usize {
+pub fn getDevices(devices: []root.device.Device) usize {
     devices[0] = .Host;
     return 1;
 }
 
-pub fn getDeviceInfo(info: root.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
+pub fn getDeviceInfo(info: root.device.DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) !void {
     switch (info) {
         .BACKEND => unreachable,
         .VENDOR => try getVendor(raw_ptr, raw_len),
@@ -176,9 +176,9 @@ const Cpuid = struct {
 };
 
 test "get cpu info" {
-    var device = try std.testing.allocator.create(root.Device);
+    var device = try std.testing.allocator.create(root.device.Device);
     defer std.testing.allocator.destroy(device);
 
-    _ = try getDevices(@ptrCast([*]root.Device, device)[0..1]);
+    _ = try getDevices(@ptrCast([*]root.device.Device, device)[0..1]);
     defer device.ucDeviceDeinit();
 }
