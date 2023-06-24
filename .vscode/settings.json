@@ -1,11 +1,11 @@
 {
     "cmake.configureOnOpen": false,
     "C_Cpp.default.includePath": [
-        "/home/aandreba/zig/master/files/lib",
         "${default}",
         "include"
     ],
     "files.associations": {
+        "*.spirv": "spvasm",
         "universal-compute.h": "c",
         "*.inc": "c",
         "zig.h": "c",
@@ -19,6 +19,28 @@
         "any": "c",
         "atomic": "c",
         "memory_resource": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "context.h": "c",
+        "windows.h": "c",
+        "initializer_list": "c",
+        "xstring": "c",
+        "xutility": "c",
+        "xmemory": "c",
+        "stdbool.h": "c",
+        "compare": "c",
+        "iosfwd": "c",
+        "istream": "c",
+        "iterator": "c",
+        "limits": "c",
+        "memory": "c",
+        "ostream": "c",
+        "string": "c",
+        "tuple": "c",
+        "utility": "c",
+        "xiosbase": "c",
+        "xlocale": "c",
+        "xlocnum": "c",
+        "xtr1common": "c",
+        "imm.h": "c"
     }
 }

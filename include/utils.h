@@ -2,7 +2,11 @@
 #define __UC_UTILS
 
 #include <stdint.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 #if !defined(__cplusplus) && __STDC_VERSION__ <= 201710L
 #if __STDC_VERSION__ >= 199901L
@@ -36,13 +40,14 @@ typedef char bool;
 #define zig_align zig_align_unavailable
 #endif
 
-// #define uc_opaque(name) typedef struct name name
 #define uc_opaque(name, size, align)      \
-    typedef struct name {                 \
+    typedef struct name                   \
+    {                                     \
         uint8_t zig_align(align) _[size]; \
     } name;
 
-typedef struct uc_alloc_layout_t {
+typedef struct uc_alloc_layout_t
+{
     size_t size;
     size_t align;
 } uc_alloc_layout_t;

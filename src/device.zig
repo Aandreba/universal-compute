@@ -13,7 +13,7 @@ comptime {
 
 pub const Device = union(root.backend.Kind) {
     Host: void,
-    OpenCl: OpenCl.c.cl_device_id,
+    OpenCl: root.cl.cl_device_id,
 };
 
 pub export fn ucGetDeviceLayout() root.AllocLayout {
@@ -46,8 +46,8 @@ pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*any
     }
 
     const res = switch (self.*) {
-        .Host => root.backend.Host.getDeviceInfo(info, raw_ptr, raw_len),
-        .OpenCl => |device| root.backend.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
+        .Host => root.device.Host.getDeviceInfo(info, raw_ptr, raw_len),
+        .OpenCl => |device| root.device.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
@@ -56,7 +56,7 @@ pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*any
 pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     return switch (self.*) {
         .Host => root.UC_RESULT_SUCCESS,
-        .OpenCl => |cl_device| OpenCl.externError(OpenCl.c.clReleaseDevice(cl_device)),
+        .OpenCl => |cl_device| OpenCl.c.externError(OpenCl.c.clReleaseDevice(cl_device)),
     };
 }
 

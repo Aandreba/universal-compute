@@ -16,8 +16,8 @@ pub const Context = union(root.backend.Kind) {
 
 pub export fn ucCreateContext(device: *root.device.Device, config: *const ContextConfig, context: *Context) root.uc_result_t {
     context.* = switch (device) {
-        .Host => Host.create(),
-        .OpenCl => |cl_device| OpenCl.create(cl_device, config),
+        .Host => .{ .Host = try Host.create() },
+        .OpenCl => |cl_device| .{ .OpenCl = try OpenCl.create(cl_device, config) },
     } catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
 }

@@ -2,14 +2,17 @@
 #include <stdlib.h>
 #include <universal-compute.h>
 
-void errorHandler(uc_result res) {
-    if (res < 0) {
+void errorHandler(uc_result res)
+{
+    if (res < 0)
+    {
         printf("Error: %s", (const char *)ucErrorName(res));
         exit(1);
     }
 }
 
-int main() {
+int main()
+{
     printf("\n");
 
     // Get devices
@@ -19,7 +22,8 @@ int main() {
     printf("Available devices: %d\n", device_count);
 
     // Get device info
-    for (int i = 0; i < device_count; i++) {
+    for (int i = 0; i < device_count; i++)
+    {
         const uc_device *device = &devices[i];
         printf("===== Device %d =====\n", i);
 

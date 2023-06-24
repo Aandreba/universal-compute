@@ -22,11 +22,10 @@ const MultiContext = struct {
     pool: std.Thread.Pool,
 
     pub fn init(cores: usize) !MultiContext {
-        _ = cores;
         var pool: std.Thread.Pool = undefined;
         try std.Thread.Pool.init(&pool, .{
             .allocator = root.alloc,
-            .n_jobs: std.math.cast(u32, cores),
+            .n_jobs = std.math.cast(u32, cores),
         });
 
         return .{ .pool = pool };

@@ -69,22 +69,6 @@ fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.
 
 // look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
 fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
-    const Utils = struct {
-        fn getCudaPath(alloc: std.mem.Allocator) ?[]const u8 {
-            if (std.os.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("CUDA_PATH"))) |path| {
-                return switch (build_target.cpu.arch) {
-                    .x86 => std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "Win32" }),
-                    .x86_64 => std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "x64" }),
-                    else => brk: {
-                        std.debug.warn("Unsupported target");
-                        break :brk null;
-                    },
-                };
-            }
-            return null;
-        }
-    };
-
     const semver = try std.SemanticVersion.parse(raw_version);
     var version = std.ArrayList(u8).init(b.allocator);
     defer version.deinit();
@@ -93,7 +77,10 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
     for (compiles) |compile| {
         if (build_target.os.tag == .windows) {
             compile.addIncludePath("./lib/OpenCL-Headers");
-            if (Utils.getCudaPath()) |cuda| compile.addLibraryPath(cuda);
+            if (try Utils.getCudaPath(b.allocator)) |cuda| {
+                defer b.allocator.free(cuda);
+                compile.addLibraryPath(cuda);
+            }
             compile.step.dependOn(&submodule.step);
         }
 
@@ -148,3 +135,22 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
 
     return example;
 }
+
+const Utils = struct {
+    fn getCudaPath(alloc: std.mem.Allocator) !?[]const u8 {
+        if (std.os.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("CUDA_PATH"))) |utf16_path| {
+            const path = try std.unicode.utf16leToUtf8Alloc(alloc, utf16_path);
+            defer alloc.free(path);
+
+            return switch (build_target.cpu.arch) {
+                .x86 => try std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "Win32" }),
+                .x86_64 => try std.fs.path.join(alloc, &[_][]const u8{ path, "lib", "x64" }),
+                else => brk: {
+                    std.debug.warn("Unsupported target");
+                    break :brk null;
+                },
+            };
+        }
+        return null;
+    }
+};
