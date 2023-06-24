@@ -40,11 +40,11 @@ const SingleContext = struct {};
 
 // Context for multi-threaded devices
 const MultiContext = struct {
-    pool: std.Thread.Pool,
+    pool: *std.Thread.Pool,
 
     pub fn init(cores: usize) !MultiContext {
-        var pool: std.Thread.Pool = undefined;
-        try std.Thread.Pool.init(&pool, .{
+        var pool = try root.alloc.create(std.Thread.Pool);
+        try std.Thread.Pool.init(pool, .{
             .allocator = root.alloc,
             .n_jobs = std.math.cast(u32, cores),
         });
@@ -54,5 +54,6 @@ const MultiContext = struct {
 
     pub fn deinit(self: *MultiContext) void {
         self.pool.deinit();
+        root.alloc.destroy(self.pool);
     }
 };
