@@ -7,7 +7,7 @@ pub const Context = struct {
     queue: c.cl_command_queue,
 };
 
-pub fn create(device: c.cl_device_id, config: root.context.ContextConfig) !Context {
+pub fn create(device: c.cl_device_id, config: *const root.context.ContextConfig) !Context {
     var res: c.cl_int = undefined;
 
     const ctx = c.clCreateContext(
@@ -23,7 +23,9 @@ pub fn create(device: c.cl_device_id, config: root.context.ContextConfig) !Conte
         _ = c.clReleaseContext(ctx);
     }
 
-    const props: c.cl_command_queue_properties = c.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | (if (config.debug) c.CL_QUEUE_PROFILING_ENABLE else 0);
+    var props: c.cl_command_queue_properties = comptime @intCast(c.cl_command_queue_properties, c.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
+    if (config.debug) props |= comptime @intCast(c.cl_command_queue_properties, c.CL_QUEUE_PROFILING_ENABLE);
+
     var queue: c.cl_command_queue = if (comptime c.CL_VERSION_2_0 == c.CL_TRUE)
         c.clCreateCommandQueueWithProperties(ctx, device, &[_:0]c.cl_queue_properties{props}, &res)
     else

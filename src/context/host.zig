@@ -7,10 +7,10 @@ pub const Context = union(enum) {
 };
 
 pub fn create() !Context {
-    return switch (root.device.Host.getCoreCount()) {
+    return switch (try root.device.Host.getCoreCount()) {
         0 => unreachable,
         1 => .{ .Single = .{} },
-        else => |cc| .{ .Multi = MultiContext.init(cc) },
+        else => |cc| .{ .Multi = try MultiContext.init(cc) },
     };
 }
 

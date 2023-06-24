@@ -7,8 +7,7 @@ pub const Host = @import("device/host.zig");
 pub const OpenCl = @import("device/opencl.zig");
 
 comptime {
-    std.debug.assert(@sizeOf(Device) == 2 * @sizeOf(usize));
-    std.debug.assert(@alignOf(Device) == @alignOf(usize));
+    root.checkLayout(Device, 2 * @sizeOf(usize), @alignOf(usize));
 }
 
 pub const Device = union(root.backend.Kind) {
@@ -56,7 +55,7 @@ pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*any
 pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     return switch (self.*) {
         .Host => root.UC_RESULT_SUCCESS,
-        .OpenCl => |cl_device| OpenCl.c.externError(OpenCl.c.clReleaseDevice(cl_device)),
+        .OpenCl => |cl_device| root.cl.externError(root.cl.clReleaseDevice(cl_device)),
     };
 }
 

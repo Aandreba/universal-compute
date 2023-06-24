@@ -5,8 +5,7 @@ pub const Host = @import("context/host.zig");
 pub const OpenCl = @import("context/opencl.zig");
 
 comptime {
-    std.debug.assert(@sizeOf(Context) == 3 * @sizeOf(usize));
-    std.debug.assert(@alignOf(Context) == @alignOf(usize));
+    root.checkLayout(Context, 11 * @sizeOf(usize), @alignOf(usize));
 }
 
 pub const Context = union(root.backend.Kind) {
@@ -15,14 +14,14 @@ pub const Context = union(root.backend.Kind) {
 };
 
 pub export fn ucCreateContext(device: *root.device.Device, config: *const ContextConfig, context: *Context) root.uc_result_t {
-    context.* = switch (device) {
-        .Host => .{ .Host = try Host.create() },
-        .OpenCl => |cl_device| .{ .OpenCl = try OpenCl.create(cl_device, config) },
-    } catch |e| return root.externError(e);
+    context.* = switch (device.*) {
+        .Host => .{ .Host = Host.create() catch |e| return root.externError(e) },
+        .OpenCl => |cl_device| .{ .OpenCl = OpenCl.create(cl_device, config) catch |e| return root.externError(e) },
+    };
     return root.UC_RESULT_SUCCESS;
 }
 
-pub export fn ucContextInfo(self: *Context) root.uc_result_t {
+pub export fn ucContextInfo(self: *const Context) root.uc_result_t {
     _ = self;
     // TODO
     return root.UC_RESULT_SUCCESS;

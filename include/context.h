@@ -5,7 +5,7 @@
 #include "error.h"
 #include "utils.h"
 
-uc_opaque(uc_context, 3 * sizeof(size_t), sizeof(size_t));
+uc_opaque(uc_context, 11 * sizeof(size_t), sizeof(size_t));
 typedef struct uc_context_config
 {
     bool debug;

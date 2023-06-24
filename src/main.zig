@@ -104,3 +104,14 @@ pub const AllocLayout = extern struct {
 pub fn castOpaque(comptime T: type, ptr: *anyopaque) *T {
     return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
 }
+
+pub fn checkLayout(comptime T: type, comptime size: comptime_int, comptime alignment: comptime_int) void {
+    if (@sizeOf(T) != size) {
+        const str = std.fmt.comptimePrint("Invalid size for '{s}': expected '{}', found '{}'", .{ @typeName(T), size, @sizeOf(T) });
+        @compileError(str);
+    }
+    if (@alignOf(T) != alignment) {
+        const str = std.fmt.comptimePrint("Invalid alignment for '{s}': expected '{}', found '{}'", .{ @typeName(T), alignment, @alignOf(T) });
+        @compileError(str);
+    }
+}
