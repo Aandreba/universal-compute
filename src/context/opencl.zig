@@ -5,6 +5,11 @@ const c = root.cl;
 pub const Context = struct {
     context: c.cl_context,
     queue: c.cl_command_queue,
+
+    pub fn deinit(self: Context) !void {
+        try c.clError(c.clReleaseCommandQueue(self.queue));
+        try c.clError(c.clReleaseContext(self.context));
+    }
 };
 
 pub fn create(device: c.cl_device_id, config: *const root.context.ContextConfig) !Context {
@@ -36,11 +41,6 @@ pub fn create(device: c.cl_device_id, config: *const root.context.ContextConfig)
         .context = ctx,
         .queue = queue,
     };
-}
-
-pub fn deinit(self: Context) !void {
-    try c.clError(c.clReleaseCommandQueue(self.queue));
-    try c.clError(c.clReleaseContext(self.context));
 }
 
 fn notify(errinfo: [*c]const u8, _: ?*const anyopaque, _: usize, _: ?*anyopaque) callconv(.C) void {

@@ -124,7 +124,6 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     example.addIncludePath("include");
     example.c_std = .C11;
     example.linkLibrary(lib);
-    example.emit_llvm_ir = .{ .emit_to = "example/example.ll" };
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {

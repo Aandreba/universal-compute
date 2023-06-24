@@ -28,8 +28,11 @@ pub export fn ucContextInfo(self: *const Context) root.uc_result_t {
 }
 
 pub export fn ucContextDeinit(self: *Context) root.uc_result_t {
-    _ = self;
-    // TODO
+    const res = switch (self.*) {
+        .Host => |*ctx| ctx.deinit(),
+        .OpenCl => |ctx| ctx.deinit(),
+    };
+    res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
 }
 
@@ -39,5 +42,6 @@ pub const ContextConfig = extern struct {
 };
 
 pub const ContextInfo = enum(u32) {
+    BACKEND,
     DEVICE,
 };

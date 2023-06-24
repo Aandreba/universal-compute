@@ -4,6 +4,13 @@ const root = @import("../main.zig");
 pub const Context = union(enum) {
     Single: SingleContext,
     Multi: MultiContext,
+
+    pub fn deinit(self: *Context) void {
+        switch (self.*) {
+            .Single => return,
+            .Multi => |*ctx| ctx.deinit(),
+        }
+    }
 };
 
 pub fn create() !Context {
@@ -29,5 +36,9 @@ const MultiContext = struct {
         });
 
         return .{ .pool = pool };
+    }
+
+    pub fn deinit(self: *MultiContext) void {
+        self.pool.deinit();
     }
 };

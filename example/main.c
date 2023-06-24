@@ -63,7 +63,7 @@ int main()
         const uc_result context_result = ucCreateContext(device, &context_config, &context);
         if (context_result < 0)
         {
-            fprintf(stdout, "Error: %s (%ld)", ucErrorName(context_result), context_result);
+            fprintf(stderr, "Error: %s (%ld)", ucErrorName(context_result), context_result);
             continue;
         }
 

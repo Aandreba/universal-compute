@@ -1,3 +1,4 @@
 docs/
 zig-out/
 zig-cache/
+example/out/*
