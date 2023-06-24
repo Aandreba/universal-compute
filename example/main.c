@@ -15,6 +15,7 @@ int main()
 {
     puts("\n");
     const uc_context_config context_config = {.debug = true};
+    const uc_buffer_config buffer_config;
 
     // Get devices
     size_t device_count = 5;
@@ -67,7 +68,12 @@ int main()
             continue;
         }
 
+        // Create buffer
+        uc_buffer alpha;
+        errorHandler(ucCreateBuffer(&context, 5 * sizeof(float), &buffer_config, &alpha));
+
         // Deinit everything
+        errorHandler(ucBufferDeinit(&alpha));
         errorHandler(ucContextDeinit(&context));
         errorHandler(ucDeviceDeinit(device));
     }

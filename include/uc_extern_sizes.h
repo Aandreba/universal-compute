@@ -8,7 +8,7 @@
 #define DEVICE_SIZE 2 * sizeof(size_t)
 #define DEVICE_ALIGN sizeof(size_t)
 
-#define CONTEXT_SIZE 11 * sizeof(size_t)
+#define CONTEXT_SIZE 3 * sizeof(size_t)
 #define CONTEXT_ALIGN sizeof(size_t)
 
 #define BUFFER_SIZE 3 * sizeof(size_t)
