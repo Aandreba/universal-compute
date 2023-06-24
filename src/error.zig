@@ -29,7 +29,7 @@ pub fn externError(e: anyerror) uc_result_t {
 }
 
 pub fn resultToError(res: uc_result_t) !void {
+    if (res >= 0) return;
     const e = @intCast(raw_errot_t, -res);
-    if (e >= 0) return;
     return @intToError(e);
 }

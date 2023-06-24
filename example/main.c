@@ -6,17 +6,18 @@ void errorHandler(uc_result res)
 {
     if (res < 0)
     {
-        printf("Error: %s", (const char *)ucErrorName(res));
+        fprintf(stderr, "Error: %s (%ld)", ucErrorName(res), res);
         exit(1);
     }
 }
 
 int main()
 {
-    printf("\n");
+    puts("\n");
+    const uc_context_config context_config = {.debug = true};
 
     // Get devices
-    size_t device_count = 2;
+    size_t device_count = 5;
     uc_device *devices = (uc_device *)malloc(device_count * sizeof(uc_device));
     errorHandler(ucGetDevices(NULL, 0, devices, &device_count));
     printf("Available devices: %d\n", device_count);
@@ -26,6 +27,12 @@ int main()
     {
         const uc_device *device = &devices[i];
         printf("===== Device %d =====\n", i);
+
+        // Get device backend
+        size_t backend_len = sizeof(uc_backend);
+        uc_backend backend;
+        errorHandler(ucDeviceInfo(device, UC_DEVICE_INFO_BACKEND, &backend, &backend_len));
+        printf("\tBackend: %s\n", ucBackendName(backend));
 
         // Get device vendor
         size_t vendor_len;
@@ -46,11 +53,22 @@ int main()
         free(name);
 
         // Get device core count
-        const size_t core_count_len = sizeof(size_t);
+        size_t core_count_len = sizeof(size_t);
         size_t core_count;
         errorHandler(ucDeviceInfo(device, UC_DEVICE_INFO_CORE_COUNT, &core_count, &core_count_len));
         printf("\tCore count: %ld\n", core_count);
 
+        // Create context
+        uc_context context;
+        const uc_result context_result = ucCreateContext(device, &context_config, &context);
+        if (context_result < 0)
+        {
+            fprintf(stdout, "Error: %s (%ld)", ucErrorName(context_result), context_result);
+            continue;
+        }
+
+        // Deinit everything
+        // errorHandler(ucContextDeinit(context));
         errorHandler(ucDeviceDeinit(device));
     }
 

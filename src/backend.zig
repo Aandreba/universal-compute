@@ -13,3 +13,7 @@ pub const Kind = enum(usize) {
         };
     }
 };
+
+pub export fn ucBackendName(backend: Kind) [*:0]const u8 {
+    return @tagName(backend);
+}

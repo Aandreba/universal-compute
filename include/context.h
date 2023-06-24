@@ -11,6 +11,6 @@ typedef struct uc_context_config
     bool debug;
 } uc_context_config;
 
-uc_result ucCreateContext(uc_device *device, const uc_context_config *config);
+uc_result ucCreateContext(uc_device *device, const uc_context_config *config, uc_context *context);
 
 #endif

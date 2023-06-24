@@ -46,10 +46,4 @@ typedef char bool;
         uint8_t zig_align(align) _[size]; \
     } name;
 
-typedef struct uc_alloc_layout_t
-{
-    size_t size;
-    size_t align;
-} uc_alloc_layout_t;
-
 #endif
