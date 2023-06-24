@@ -8,7 +8,7 @@ comptime {
     root.checkLayout(Context, 11 * @sizeOf(usize), @alignOf(usize));
 }
 
-pub const Context = union(root.backend.Kind) {
+pub const Context = union(root.Backend) {
     Host: Host.Context,
     OpenCl: OpenCl.Context,
 };
@@ -21,9 +21,12 @@ pub export fn ucCreateContext(device: *root.device.Device, config: *const Contex
     return root.UC_RESULT_SUCCESS;
 }
 
-pub export fn ucContextInfo(self: *const Context) root.uc_result_t {
-    _ = self;
-    // TODO
+pub export fn ucContextInfo(self: *const Context, info: ContextInfo, raw_data: ?*anyopaque, len: *usize) root.uc_result_t {
+    const res = switch (self.*) {
+        .Host => Host.info(info, raw_data, len),
+        .OpenCl => |*ctx| ctx.info(info, raw_data, len),
+    };
+    res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
 }
 
@@ -41,7 +44,7 @@ pub const ContextConfig = extern struct {
     debug: bool,
 };
 
-pub const ContextInfo = enum(u32) {
-    BACKEND,
-    DEVICE,
+pub const ContextInfo = enum(usize) {
+    BACKEND = 0,
+    DEVICE = 1,
 };

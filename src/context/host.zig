@@ -21,6 +21,20 @@ pub fn create() !Context {
     };
 }
 
+pub fn info(ty: root.context.ContextInfo, raw_data: ?*anyopaque, len: *usize) !void {
+    if (raw_data) |data| {
+        switch (ty) {
+            .BACKEND => (try root.castOpaque(root.Backend, data, len.*)).* = .Host,
+            .DEVICE => (try root.castOpaque(root.device.Device, data, len.*)).* = .Host,
+        }
+    } else {
+        switch (ty) {
+            .BACKEND => len.* = @sizeOf(root.Backend),
+            .DEVICE => len.* = @sizeOf(root.device.Device),
+        }
+    }
+}
+
 // Context for single-threaded devices
 const SingleContext = struct {};
 

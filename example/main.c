@@ -68,7 +68,7 @@ int main()
         }
 
         // Deinit everything
-        // errorHandler(ucContextDeinit(context));
+        errorHandler(ucContextDeinit(&context));
         errorHandler(ucDeviceDeinit(device));
     }
 

@@ -19,14 +19,14 @@ pub fn getDeviceInfo(info: root.device.DeviceInfo, raw_ptr: ?*anyopaque, raw_len
         .NAME => try getName(raw_ptr, raw_len),
         .CORE_COUNT => {
             if (raw_ptr) |ptr| {
-                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = try getCoreCount();
+                (try root.castOpaque(usize, ptr, raw_len.*)).* = try getCoreCount();
             } else {
                 raw_len.* = @sizeOf(usize);
             }
         },
         .MAX_FREQUENCY => {
             if (raw_ptr) |ptr| {
-                @ptrCast(*usize, @alignCast(@alignOf(usize), ptr)).* = getMaxFrequency();
+                (try root.castOpaque(usize, ptr, raw_len.*)).* = getMaxFrequency();
             } else {
                 raw_len.* = @sizeOf(usize);
             }

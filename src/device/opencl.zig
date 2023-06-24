@@ -57,7 +57,7 @@ pub fn getDeviceInfo(info: root.device.DeviceInfo, device: c.cl_device_id, raw_p
             .CORE_COUNT, .MAX_FREQUENCY => {
                 var count: c.cl_uint = undefined;
                 try c.clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, &count, null));
-                root.castOpaque(usize, ptr).* = @intCast(usize, count);
+                (try root.castOpaque(usize, ptr, raw_len.*)).* = @intCast(usize, count);
             },
             else => {
                 return c.clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));

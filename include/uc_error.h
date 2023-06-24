@@ -1,6 +1,6 @@
 #ifndef __UC_ERROR
 #define __UC_ERROR
-#include "utils.h"
+#include "uc_utils.h"
 
 typedef int32_t uc_result;
 #define UC_RESULT_SUCCESS 0

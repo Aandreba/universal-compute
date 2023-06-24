@@ -1,6 +1,8 @@
 #ifndef __UC_UTILS
 #define __UC_UTILS
 
+#include "uc_extern_sizes.h"
+
 #include <stdint.h>
 #ifdef _WIN32
 #include <windows.h>

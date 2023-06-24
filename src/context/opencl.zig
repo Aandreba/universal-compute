@@ -6,6 +6,30 @@ pub const Context = struct {
     context: c.cl_context,
     queue: c.cl_command_queue,
 
+    pub fn info(self: *const Context, ty: root.context.ContextInfo, raw_data: ?*anyopaque, len: *usize) !void {
+        switch (ty) {
+            .BACKEND => {
+                if (raw_data) |data| {
+                    (try root.castOpaque(root.Backend, data, len.*)).* = .OpenCl;
+                } else {
+                    len.* = @sizeOf(root.Backend);
+                }
+            },
+            .DEVICE => try self.getDevice(raw_data, len),
+        }
+    }
+
+    fn getDevice(self: *const Context, raw_data: ?*anyopaque, len: *usize) !void {
+        if (raw_data) |data| {
+            var device: c.cl_device_id = undefined;
+            try c.clError(c.clGetContextInfo(self.context, c.CL_CONTEXT_DEVICES, @sizeOf(c.cl_device_id), @ptrCast(*anyopaque, &device), null));
+            try c.clError(c.clRetainDevice(device));
+            (try root.castOpaque(root.device.Device, data, len.*)).* = .{ .OpenCl = device };
+        } else {
+            len.* = @sizeOf(root.device.Device);
+        }
+    }
+
     pub fn deinit(self: Context) !void {
         try c.clError(c.clReleaseCommandQueue(self.queue));
         try c.clError(c.clReleaseContext(self.context));

@@ -1,10 +1,10 @@
 #ifndef __UC_DEVICE
 #define __UC_DEVICE
 
-#include "error.h"
-#include "utils.h"
+#include "uc_error.h"
+#include "uc_utils.h"
 
-uc_opaque(uc_device, 2 * sizeof(size_t), sizeof(size_t));
+uc_opaque(uc_device, DEVICE_SIZE, DEVICE_ALIGN);
 
 typedef size_t uc_backend;
 #define UC_BACKEND_HOST 0

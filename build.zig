@@ -40,6 +40,7 @@ pub fn build(b: *std.Build) !void {
 
     // Library
     const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
+    lib.addIncludePath("include");
     if (libc) lib.linkLibC();
     lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;

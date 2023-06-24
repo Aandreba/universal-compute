@@ -2,12 +2,17 @@ const std = @import("std");
 pub const backend = @import("backend.zig");
 pub const device = @import("device.zig");
 pub const context = @import("context.zig");
+pub const buffer = @import("buffer.zig");
+pub const extern_sizes = @cImport(@cInclude("include/uc_extern_sizes.h"));
 
 pub usingnamespace @import("utils.zig");
 pub usingnamespace @import("error.zig");
 usingnamespace backend;
 usingnamespace device;
 usingnamespace context;
+usingnamespace buffer;
+
+pub const Backend = backend.Kind;
 
 pub const cl = struct {
     const root = @import("root");
@@ -89,19 +94,8 @@ pub const cl = struct {
     }
 };
 
-pub const AllocLayout = extern struct {
-    size: usize,
-    @"align": usize,
-
-    pub fn init(comptime T: type) AllocLayout {
-        return .{
-            .size = @sizeOf(T),
-            .@"align" = @alignOf(T),
-        };
-    }
-};
-
-pub fn castOpaque(comptime T: type, ptr: *anyopaque) *T {
+pub fn castOpaque(comptime T: type, ptr: *anyopaque, len: usize) !*T {
+    if (len < @sizeOf(T)) return error.InvalidSize;
     return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
 }
 

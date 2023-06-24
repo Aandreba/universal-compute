@@ -10,17 +10,13 @@ comptime {
     root.checkLayout(Device, 2 * @sizeOf(usize), @alignOf(usize));
 }
 
-pub const Device = union(root.backend.Kind) {
+pub const Device = union(root.Backend) {
     Host: void,
     OpenCl: root.cl.cl_device_id,
 };
 
-pub export fn ucGetDeviceLayout() root.AllocLayout {
-    return root.AllocLayout.init(Device);
-}
-
-pub export fn ucGetDevices(raw_backends: ?[*]const root.backend.Kind, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
-    const backends = if (raw_backends) |raw| raw[0..backends_len] else &utils.enumList(root.backend.Kind);
+pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
+    const backends = if (raw_backends) |raw| raw[0..backends_len] else &utils.enumList(root.Backend);
     var devices = raw_devices[0..devices_len.*];
 
     var count: usize = 0;
@@ -37,10 +33,10 @@ pub export fn ucGetDevices(raw_backends: ?[*]const root.backend.Kind, backends_l
 pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*anyopaque, raw_len: *usize) root.uc_result_t {
     if (info == .BACKEND) {
         if (raw_ptr) |ptr| {
-            if (raw_len.* < @sizeOf(root.backend.Kind)) return root.externError(error.InvalidSize);
-            root.castOpaque(root.backend.Kind, ptr).* = @as(root.backend.Kind, self.*);
+            const casted_ptr = root.castOpaque(root.Backend, ptr, raw_len.*) catch |e| return root.externError(e);
+            casted_ptr.* = @as(root.Backend, self.*);
         }
-        raw_len.* = @sizeOf(root.backend.Kind);
+        raw_len.* = @sizeOf(root.Backend);
         return root.UC_RESULT_SUCCESS;
     }
 

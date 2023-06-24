@@ -41,6 +41,7 @@
         "xlocale": "c",
         "xlocnum": "c",
         "xtr1common": "c",
-        "imm.h": "c"
+        "imm.h": "c",
+        "uc_extern_sizes.h": "c"
     }
 }
