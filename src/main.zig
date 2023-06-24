@@ -3,7 +3,7 @@ pub const backend = @import("backend.zig");
 pub const device = @import("device.zig");
 pub const context = @import("context.zig");
 pub const buffer = @import("buffer.zig");
-pub const extern_sizes = @cImport(@cInclude("include/uc_extern_sizes.h"));
+pub const extern_sizes = @cImport(@cInclude("uc_extern_sizes.h"));
 
 pub usingnamespace @import("utils.zig");
 pub usingnamespace @import("error.zig");

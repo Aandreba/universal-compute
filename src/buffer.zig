@@ -5,7 +5,7 @@ pub const Host = @import("buffer/host.zig");
 pub const OpenCl = @import("buffer/opencl.zig");
 
 comptime {
-    root.checkLayout(Buffer, 3 * @sizeOf(usize), @alignOf(usize));
+    root.checkLayout(Buffer, root.extern_sizes.BUFFER_SIZE, root.extern_sizes.BUFFER_ALIGN);
 }
 
 pub const Buffer = union(root.Backend) {
