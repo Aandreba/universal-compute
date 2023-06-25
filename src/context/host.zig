@@ -1,9 +1,13 @@
 const std = @import("std");
 const root = @import("../main.zig");
+const zigrc = @import("zigrc");
+
+const Event = root.event.Host.Event;
+const Arc = zigrc.Arc;
 
 pub const Context = union(enum) {
     Single: SingleContext,
-    Multi: MultiContext,
+    Multi: *MultiContext,
 
     pub fn deinit(self: *Context) void {
         switch (self.*) {
@@ -41,7 +45,6 @@ pub fn finish(ctx: *Context) !void {
     };
 }
 
-
 // Context for single-threaded devices
 const SingleContext = struct {
     queue: std.ArrayListUnmanaged(Task),
@@ -59,7 +62,7 @@ const SingleContext = struct {
                 }
             }
         };
-        
+
         self.queue.append(root.alloc, Impl.run);
     }
 
@@ -69,7 +72,7 @@ const SingleContext = struct {
 
         while (self.queue.items.len > 0) {
             const task = self.queue.pop();
-            try task.run();
+            task.run();
         }
     }
 
@@ -80,39 +83,103 @@ const SingleContext = struct {
     inline fn unlock(self: *SingleContext) void {
         if (comptime root.use_atomics) self.queue_lock.unlock();
     }
-
-    const Task = struct {
-        f: *const fn(*anyopaque) anyerror!void,
-        user_data: *anyopaque,
-
-        inline fn run(self: Task) !void {
-            return (self.f)(self.user_data);
-        }
-    };
 };
 
 // Context for multi-threaded devices
 const MultiContext = struct {
     threads: []std.Thread,
+    tasks: std.ArrayListUnmanaged(Task),
+    tasks_lock: std.Thread.RwLock,
 
-    pub fn init(cores: usize) !MultiContext {
-        var threads: []std.Thread = try root.alloc.alloc(std.Thread, cores);
+    pub fn init(cores: usize) !*MultiContext {
+        var ctx = try root.alloc.create(MultiContext);
+        ctx.* = .{
+            .threads = try root.alloc.alloc(std.Thread, cores),
+            .tasks = .{},
+            .tasks_lock = .{},
+        };
 
         var i = 0;
-        errdefer for (threads[0..i]) |thread| thread.detach();
+        errdefer for (ctx.threads[0..i]) |thread| thread.detach();
         while (i < cores) {
+            ctx.threads[i] = try std.Thread.spawn(.{}, worker, .{ctx});
             i += 1;
         }
 
-        return .{ .threads = threads };
+        return ctx;
     }
 
-    pub fn finish(self: *MultiContext) void {
-        self.pool.spawn(comptime func: anytype, args: anytype)
+    fn worker(self: *MultiContext) void {
+        self.tasks_lock.lockShared();
+        defer self.tasks_lock.unlockShared();
+
+        var yield = false;
+        while (true) {
+            // Wait for tasks to be available
+            if (self.tasks.items.len == 0) {
+                switch (yield) {
+                    true => std.Thread.yield() catch std.atomic.spinLoopHint(),
+                    false => std.atomic.spinLoopHint(),
+                }
+                yield = !yield;
+                continue;
+            }
+
+            // Unlock shared
+            self.tasks_lock.unlockShared();
+            defer self.tasks_lock.lockShared();
+            yield = false;
+
+            // Pop task from the queue
+            const task: Task = brk: {
+                self.tasks_lock.lock();
+                defer self.tasks_lock.unlock();
+
+                if (self.tasks.items.len == 0) continue;
+                break :brk self.tasks.swapRemove(0);
+            };
+
+            // Execute task
+            task.run();
+        }
+    }
+
+    pub fn finish(self: *MultiContext) !void {
+        self.tasks_lock.lock();
+        defer self.tasks_lock.unlock();
+
+        for (self.tasks.items) |task| {
+            task.event.join();
+        }
     }
 
     pub fn deinit(self: *MultiContext) void {
-        self.pool.deinit();
-        root.alloc.destroy(self.pool);
+        //for (self.threads) |thread| thread.detach();
+        self.tasks.deinit(root.alloc);
+        root.alloc.free(self.threads);
+        root.alloc.destroy(self);
+    }
+};
+
+const Task = struct {
+    f: *const fn (*anyopaque) anyerror!void,
+    user_data: *anyopaque,
+    event: Arc(Event).Weak,
+
+    fn run(self: *Task) void {
+        defer self.event.release();
+
+        const event = self.event.upgrade();
+        if (event) |evt| evt.value.markRunning();
+
+        const res = brk: {
+            (self.f)(self.user_data) catch |e| break :brk e;
+            break :brk null;
+        };
+
+        if (event) |evt| {
+            evt.value.markComplete(res);
+            evt.releaseWithFn(Event.deinit);
+        }
     }
 };
