@@ -1,9 +1,8 @@
 const std = @import("std");
 const root = @import("main.zig");
 
-const Arc = @import("zigrc").Arc;
 pub const Host = @import("event/host.zig");
-pub const Opencl = @import("event/opencl.zig");
+pub const OpenCl = @import("event/opencl.zig");
 
 comptime {
     root.checkLayout(Event, root.extern_sizes.EVENT_SIZE, root.extern_sizes.EVENT_ALIGN);
@@ -14,6 +13,15 @@ pub const Event = union(root.Backend) {
     OpenCl: root.cl.cl_event,
 };
 
+pub export fn ucEventJoin(event: *Event) root.uc_result_t {
+    const res = switch (event.*) {
+        .Host => |evt| Host.join(evt),
+        .OpenCl => |*evt| OpenCl.join(evt),
+    };
+    res catch |e| return root.externError(e);
+    return root.UC_RESULT_SUCCESS;
+}
+
 pub export fn ucEventOnComplete(
     event: *Event,
     cb: *const fn (root.uc_result_t, ?*anyopaque) callconv(.C) void,
@@ -21,7 +29,7 @@ pub export fn ucEventOnComplete(
 ) root.uc_result_t {
     const res = switch (event.*) {
         .Host => |evt| Host.onComplete(evt, cb, user_data),
-        .OpenCl => |evt| Opencl.onComplete(evt, cb, user_data),
+        .OpenCl => |evt| OpenCl.onComplete(evt, cb, user_data),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;

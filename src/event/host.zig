@@ -49,6 +49,10 @@ pub const Event = struct {
             self.status = .COMPLETE;
         }
 
+        if (comptime use_atomics) {
+            std.Thread.Futex.wake(@ptrCast(*const std.atomic.Atomic(u32), &self.status), std.math.maxInt(u32));
+        }
+
         const c_res = if (res) |e| root.externError(e) else root.UC_RESULT_SUCCESS;
         var cbs: []Callback = undefined;
         {
@@ -80,6 +84,19 @@ pub const Event = struct {
         if (comptime use_atomics) self.cbs_lock.unlock();
     }
 };
+
+pub fn join(self: *Event) !void {
+    if (comptime use_atomics) {
+        while (true) {
+            switch (@atomicLoad(root.event.Status, &self.status, .Acquire)) {
+                .COMPLETE => return,
+                else => |status| std.Thread.Futex.wait(@ptrCast(*const std.atomic.Atomic(u32), &self.status), @enumToInt(status)),
+            }
+        }
+    } else {
+        if (self.status != .COMPLETE) return error.Deadlock;
+    }
+}
 
 pub fn onComplete(self: *Event, f: *const fn (root.uc_result_t, ?*anyopaque) callconv(.C) void, user_data: ?*anyopaque) !void {
     const cb = Callback{
