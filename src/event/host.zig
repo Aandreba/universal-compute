@@ -3,8 +3,7 @@ const builtin = @import("builtin");
 const root = @import("../main.zig");
 
 const ArcEvent = @import("zigrc").Arc(Event);
-// TODO add support for Wasm atomics
-const use_atomics: bool = !builtin.single_threaded;
+const use_atomics: bool = root.use_atomics;
 
 pub const Event = struct {
     status: root.event.Status = .PENDING,

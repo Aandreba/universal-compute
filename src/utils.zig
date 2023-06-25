@@ -2,6 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const target: std.Target = builtin.target;
 
+// TODO wasm threads
+pub const use_atomics: bool = !builtin.single_threaded;
 pub const alloc = if (builtin.is_test) std.testing.allocator else std.heap.page_allocator;
 
 pub fn enumList(comptime T: type) [@typeInfo(T).Enum.fields.len]T {
