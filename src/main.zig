@@ -3,6 +3,7 @@ pub const backend = @import("backend.zig");
 pub const device = @import("device.zig");
 pub const context = @import("context.zig");
 pub const buffer = @import("buffer.zig");
+pub const event = @import("event.zig");
 pub const extern_sizes = @cImport(@cInclude("uc_extern_sizes.h"));
 
 pub usingnamespace @import("utils.zig");
@@ -11,6 +12,7 @@ usingnamespace backend;
 usingnamespace device;
 usingnamespace context;
 usingnamespace buffer;
+usingnamespace event;
 
 pub const Backend = backend.Kind;
 
@@ -20,8 +22,9 @@ pub const cl = struct {
     pub usingnamespace c;
 
     pub fn clError(e: c.cl_int) !void {
+        if (e >= 0) return;
         return switch (e) {
-            c.CL_SUCCESS => return,
+            c.CL_SUCCESS => unreachable,
             c.CL_DEVICE_NOT_FOUND => error.DeviceNotFound,
             c.CL_DEVICE_NOT_AVAILABLE => error.DeviceNotAvailable,
             c.CL_COMPILER_NOT_AVAILABLE => error.CompilerNotAvailable,

@@ -13,3 +13,6 @@
 
 #define BUFFER_SIZE 3 * sizeof(size_t)
 #define BUFFER_ALIGN sizeof(size_t)
+
+#define EVENT_SIZE 3 * sizeof(size_t)
+#define EVENT_ALIGN sizeof(size_t)

@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) !void {
     if (libc) lib.linkLibC();
     lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;
+    lib.emit_analysis = .emit;
     b.installArtifact(lib);
 
     // Tests
@@ -133,6 +134,7 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
 
     const example_step = b.step("example", "Run the included example");
     example_step.dependOn(&run.step);
+    example_step.dependOn(&lib.step);
 
     return example;
 }
