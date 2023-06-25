@@ -18,7 +18,7 @@ pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config
     _ = config;
     buffer.* = switch (context.*) {
         .Host => .{ .Host = Host.create(size) catch |e| return root.externError(e) },
-        .OpenCl => |*ctx| .{ .OpenCl = OpenCl.create(ctx.context, size) catch |e| return root.externError(e) },
+        .OpenCl => |*ctx| .{ .OpenCl = OpenCl.create(ctx, size) catch |e| return root.externError(e) },
     };
     return root.UC_RESULT_SUCCESS;
 }

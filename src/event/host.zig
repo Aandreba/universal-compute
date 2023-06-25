@@ -8,10 +8,13 @@ const use_atomics: bool = !builtin.single_threaded;
 
 pub const Event = struct {
     status: root.event.Status = .PENDING,
-    cbs: ?CallbackQueue = .{},
+    cbs: CallbackQueue = .{ .queue = .{} },
     cbs_lock: if (use_atomics) std.Thread.Mutex else void = if (use_atomics) .{} else {},
 
-    const CallbackQueue = std.ArrayListUnmanaged(Callback);
+    const CallbackQueue = union(enum) {
+        marked: root.uc_result_t,
+        queue: std.ArrayListUnmanaged(Callback),
+    };
 
     pub fn markRunning(self: *Event) !void {
         if (comptime (builtin.mode == .Debug or builtin.mode == .ReleaseSafe) and use_atomics) {
@@ -46,22 +49,26 @@ pub const Event = struct {
             self.status = .COMPLETE;
         }
 
+        const c_res = if (res) |e| root.externError(e) else root.UC_RESULT_SUCCESS;
         var cbs: []Callback = undefined;
         {
             self.lock();
             defer self.unlock();
-            cbs = try self.cbs.?.toOwnedSlice(root.alloc);
-            self.cbs = null;
+            cbs = switch (self.cbs) {
+                .queue => |q| try q.toOwnedSlice(root.alloc),
+                .marked => unreachable,
+            };
+            self.cbs = .{ .marked = c_res };
         }
 
-        const c_res = if (res) |e| root.externError(e) else root.UC_RESULT_SUCCESS;
         for (cbs) |cb| cb.call(c_res);
     }
 
     pub fn deinit(self: Event) void {
         var this = self;
-        if (this.cbs) |*cb| {
-            cb.deinit(root.alloc);
+        switch (this.cbs) {
+            .queue => |*queue| queue.deinit(root.alloc),
+            .marked => {},
         }
     }
 
@@ -81,7 +88,10 @@ pub fn onComplete(self: *Event, f: *const fn (root.uc_result_t, ?*anyopaque) cal
     };
     self.lock();
     defer self.unlock();
-    if (self.cbs) |cbs| cbs.append(root.alloc, cb) else cb.call();
+    switch (self.cbs) {
+        .queue => |*cbs| try cbs.append(root.alloc, cb),
+        .marked => |c_res| cb.call(c_res),
+    }
 }
 
 pub inline fn release(self: *Event) void {
@@ -93,11 +103,11 @@ pub inline fn release(self: *Event) void {
 }
 
 pub inline fn retain(self: *Event) void {
-    const arc = ArcEvent{
+    var arc = ArcEvent{
         .value = self,
         .alloc = root.alloc,
     };
-    arc.retain();
+    _ = arc.retain();
 }
 
 const Callback = struct {

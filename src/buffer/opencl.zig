@@ -13,12 +13,12 @@ pub const Buffer = struct {
     }
 
     pub inline fn deinit(self: Buffer) !void {
-        try c.clError(c.clReleaseMemObject(self.buf));
+        try c.clError(c.clReleaseMemObject(self.mem));
     }
 };
 
 // TODO mem flags
-pub fn create(ctx: root.context.OpenCl.Context, size: usize) !Buffer {
+pub fn create(ctx: *root.context.OpenCl.Context, size: usize) !Buffer {
     var res: c.cl_int = undefined;
     const mem = c.clCreateBuffer(ctx.context, 0, size, null, &res);
     try c.clError(res);
