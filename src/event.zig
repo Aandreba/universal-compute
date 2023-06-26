@@ -16,7 +16,7 @@ pub const Event = union(root.Backend) {
 pub export fn ucEventJoin(event: *Event) root.uc_result_t {
     const res = switch (event.*) {
         .Host => |evt| Host.join(evt),
-        .OpenCl => |*evt| OpenCl.join(evt),
+        .OpenCl => OpenCl.join(&event.OpenCl),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;

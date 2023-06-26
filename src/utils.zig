@@ -4,7 +4,13 @@ const target: std.Target = builtin.target;
 
 // TODO wasm threads
 pub const use_atomics: bool = !builtin.single_threaded;
-pub const alloc = if (builtin.is_test) std.testing.allocator else std.heap.page_allocator;
+
+pub var alloc_instance = if (builtin.is_test) std.testing.allocator_instance else std.heap.GeneralPurposeAllocator(.{}){};
+pub const alloc: std.mem.Allocator = alloc_instance.allocator();
+
+pub export fn ucDetectMemoryLeaks() bool {
+    return if (builtin.is_test) unreachable else alloc_instance.detectLeaks();
+}
 
 pub fn enumList(comptime T: type) [@typeInfo(T).Enum.fields.len]T {
     const info: std.builtin.Type.Enum = @typeInfo(T).Enum;

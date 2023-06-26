@@ -17,8 +17,8 @@ pub const Buffer = union(root.Backend) {
 pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config: *const BufferConfig, buffer: *Buffer) root.uc_result_t {
     _ = config;
     buffer.* = switch (context.*) {
-        .Host => |*ctx| .{ .Host = Host.create(ctx, size) catch |e| return root.externError(e) },
-        .OpenCl => |*ctx| .{ .OpenCl = OpenCl.create(ctx, size) catch |e| return root.externError(e) },
+        .Host => .{ .Host = Host.create(&context.Host, size) catch |e| return root.externError(e) },
+        .OpenCl => .{ .OpenCl = OpenCl.create(&context.OpenCl, size) catch |e| return root.externError(e) },
     };
     return root.UC_RESULT_SUCCESS;
 }

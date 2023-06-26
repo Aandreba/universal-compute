@@ -24,7 +24,7 @@ pub export fn ucCreateContext(device: *root.device.Device, config: *const Contex
 pub export fn ucContextInfo(self: *const Context, info: ContextInfo, raw_data: ?*anyopaque, len: *usize) root.uc_result_t {
     const res = switch (self.*) {
         .Host => Host.info(info, raw_data, len),
-        .OpenCl => |*ctx| ctx.info(info, raw_data, len),
+        .OpenCl => self.OpenCl.info(info, raw_data, len),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
@@ -32,7 +32,7 @@ pub export fn ucContextInfo(self: *const Context, info: ContextInfo, raw_data: ?
 
 pub export fn ucContextDeinit(self: *Context) root.uc_result_t {
     const res = switch (self.*) {
-        .Host => |*ctx| ctx.deinit(),
+        .Host => self.Host.deinit(),
         .OpenCl => |ctx| ctx.deinit(),
     };
     res catch |e| return root.externError(e);

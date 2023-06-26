@@ -4,13 +4,12 @@ const zigrc = @import("zigrc");
 
 const Event = root.event.Host.Event;
 const Arc = zigrc.Arc;
-const ArcMultiContext = Arc(MultiContext);
 
 pub const Context = union(enum) {
     Single: SingleContext,
     Multi: *MultiContext,
 
-    pub fn deinit(self: *Context) !void {
+    pub fn deinit(self: *Context) void {
         return switch (self.*) {
             .Single => return,
             .Multi => |ctx| ctx.deinit(),
@@ -42,7 +41,7 @@ pub fn info(ty: root.context.ContextInfo, raw_data: ?*anyopaque, len: *usize) !v
 
 pub fn finish(ctx: *Context) !void {
     return switch (ctx.*) {
-        .Single => |*c| c.finish(),
+        .Single => ctx.Single.finish(),
         .Multi => |c| c.finish(),
     };
 }
@@ -92,17 +91,25 @@ const MultiContext = struct {
     threads: []std.Thread,
     tasks: std.ArrayListUnmanaged(Task),
     tasks_lock: std.Thread.RwLock,
+    is_running: std.atomic.Atomic(bool),
 
     pub fn init(cores: usize) !*MultiContext {
         var ctx = try root.alloc.create(MultiContext);
+        errdefer root.alloc.destroy(ctx);
+
         ctx.* = .{
             .threads = try root.alloc.alloc(std.Thread, cores),
             .tasks = .{},
             .tasks_lock = .{},
+            .is_running = std.atomic.Atomic(bool).init(true),
         };
 
         var i: usize = 0;
-        errdefer for (ctx.threads[0..i]) |thread| thread.detach();
+        errdefer {
+            ctx.threads.len = i;
+            ctx.deinit();
+        }
+
         while (i < cores) {
             ctx.threads[i] = try std.Thread.spawn(.{}, worker, .{ctx});
             i += 1;
@@ -113,7 +120,7 @@ const MultiContext = struct {
 
     fn worker(self: *MultiContext) void {
         var yield: u2 = 2;
-        while (true) {
+        while (self.is_running.load(.Monotonic)) {
             self.tasks_lock.lockShared();
 
             // Wait for tasks to be available
@@ -161,11 +168,9 @@ const MultiContext = struct {
         }
     }
 
-    pub fn deinit(self: *MultiContext) !void {
-        const this = ArcMultiContext{ .value = self, .alloc = root.alloc };
-        defer this.release();
-
-        //for (self.threads) |thread| thread.detach();
+    pub fn deinit(self: *MultiContext) void {
+        self.is_running.store(false, .Release);
+        for (self.threads) |thread| thread.join();
         self.tasks.deinit(root.alloc);
         root.alloc.free(self.threads);
         root.alloc.destroy(self);
