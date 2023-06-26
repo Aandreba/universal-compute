@@ -4,3 +4,6 @@
 [submodule "lib/zigrc"]
 	path = lib/zigrc
 	url = https://github.com/Aandreba/zigrc.git
+[submodule "lib/zig-ff"]
+	path = lib/zig-ff
+	url = https://github.com/Aandreba/zig-feature-flags

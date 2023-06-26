@@ -4,7 +4,7 @@ const utils = @import("utils.zig");
 const alloc = utils.alloc;
 
 pub const Host = @import("device/host.zig");
-pub const OpenCl = @import("device/opencl.zig");
+pub const OpenCl = if (root.features.has_opencl) @import("device/opencl.zig") else struct {};
 
 comptime {
     root.exportLayout(Device);
@@ -12,7 +12,7 @@ comptime {
 
 pub const Device = union(root.Backend) {
     Host: void,
-    OpenCl: root.cl.cl_device_id,
+    OpenCl: if (root.features.has_opencl) root.cl.cl_device_id else void,
 };
 
 pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {
@@ -42,7 +42,7 @@ pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*any
 
     const res = switch (self.*) {
         .Host => root.device.Host.getDeviceInfo(info, raw_ptr, raw_len),
-        .OpenCl => |device| root.device.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
+        .OpenCl => |device| if (!root.features.has_opencl) unreachable else root.device.OpenCl.getDeviceInfo(info, device, raw_ptr, raw_len),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;
@@ -51,7 +51,7 @@ pub export fn ucDeviceInfo(self: *const Device, info: DeviceInfo, raw_ptr: ?*any
 pub export fn ucDeviceDeinit(self: *Device) root.uc_result_t {
     return switch (self.*) {
         .Host => root.UC_RESULT_SUCCESS,
-        .OpenCl => |cl_device| root.cl.externError(root.cl.clReleaseDevice(cl_device)),
+        .OpenCl => |cl_device| if (!root.features.has_opencl) unreachable else root.cl.externError(root.cl.clReleaseDevice(cl_device)),
     };
 }
 

@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const root = @import("main.zig");
 
 pub const Host = @import("buffer/host.zig");
-pub const OpenCl = @import("buffer/opencl.zig");
+pub const OpenCl = if (root.features.has_opencl) @import("buffer/opencl.zig") else struct {};
 
 comptime {
     root.exportLayout(Buffer);
@@ -11,22 +11,22 @@ comptime {
 
 pub const Buffer = union(root.Backend) {
     Host: Host.Buffer,
-    OpenCl: OpenCl.Buffer,
+    OpenCl: if (root.features.has_opencl) OpenCl.Buffer else void,
 };
 
 pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config: *const BufferConfig, buffer: *Buffer) root.uc_result_t {
     _ = config;
     buffer.* = switch (context.*) {
         .Host => .{ .Host = Host.create(&context.Host, size) catch |e| return root.externError(e) },
-        .OpenCl => .{ .OpenCl = OpenCl.create(&context.OpenCl, size) catch |e| return root.externError(e) },
+        .OpenCl => if (!root.features.has_opencl) unreachable else .{ .OpenCl = OpenCl.create(&context.OpenCl, size) catch |e| return root.externError(e) },
     };
     return root.UC_RESULT_SUCCESS;
 }
 
 pub export fn ucBufferDeinit(buffer: *Buffer) root.uc_result_t {
-    const res = switch (buffer.*) {
+    const res: anyerror!void = switch (buffer.*) {
         .Host => |buf| Host.deinit(buf),
-        .OpenCl => |buf| buf.deinit(),
+        .OpenCl => |buf| if (!root.features.has_opencl) unreachable else buf.deinit(),
     };
     res catch |e| return root.externError(e);
     return root.UC_RESULT_SUCCESS;

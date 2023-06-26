@@ -1,4 +1,5 @@
 const std = @import("std");
+pub const features = @import("features.zig");
 pub const backend = @import("backend.zig");
 pub const device = @import("device.zig");
 pub const context = @import("context.zig");
@@ -15,9 +16,12 @@ usingnamespace event;
 
 pub const Backend = backend.Kind;
 
-pub const cl = struct {
+pub const cl = if (features.opencl) |cl_version| struct {
     const root = @import("main.zig");
-    const c = @cImport(@cInclude("CL/cl.h"));
+    const c = @cImport({
+        @cDefine("CL_TARGET_OPENCL_VERSION", cl_version);
+        @cInclude("CL/cl.h");
+    });
     pub usingnamespace c;
 
     pub fn clError(e: c.cl_int) !void {
@@ -94,7 +98,7 @@ pub const cl = struct {
         clError(e) catch |err| return root.externError(err);
         return root.UC_RESULT_SUCCESS;
     }
-};
+} else struct {};
 
 pub fn castOpaque(comptime T: type, ptr: *anyopaque, len: usize) !*T {
     if (len < @sizeOf(T)) return error.InvalidSize;

@@ -9,7 +9,7 @@ pub const Kind = enum(usize) {
     pub fn getDevices(self: Kind, devices: []root.device.Device) !usize {
         return switch (self) {
             .Host => root.device.Host.getDevices(devices),
-            .OpenCl => root.device.OpenCl.getDevices(devices),
+            .OpenCl => if (comptime root.features.has_opencl) root.device.OpenCl.getDevices(devices) else unreachable,
         };
     }
 };

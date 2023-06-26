@@ -1,4 +1,4 @@
-#define DEVICE_SIZE 16
+#define DEVICE_SIZE 8
 #define DEVICE_ALIGN 8
 #define CONTEXT_SIZE 48
 #define CONTEXT_ALIGN 8

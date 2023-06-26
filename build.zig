@@ -1,5 +1,6 @@
 const std = @import("std");
 const bridge = @import("bridge.zig");
+const ff = @import("lib/zig-ff/main.zig");
 const builtin = @import("builtin");
 const build_target: std.Target = builtin.target;
 
@@ -19,6 +20,7 @@ pub const Linkage = enum {
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    var ff_build = ff.builder(b);
 
     // Library options
     const lib_options = .{
@@ -58,8 +60,13 @@ pub fn build(b: *std.Build) !void {
     addModules(compiles, submodule, &[_]ModuleEntry{
         .{ "zigrc", zigrc },
     });
-    //if (libc) try build_libcpuid(b, compiles, target, submodule);
-    if (opencl) |cl| try buildOpenCl(b, cl, compiles, submodule);
+    if (opencl) |cl| try buildOpenCl(b, &ff_build, cl, compiles, submodule) else try ff_build.addFeatureFlag("opencl", @as(?[]const u8, null), false);
+
+    // Install feature flags
+    const features = try ff_build.build();
+    for (compiles) |compile| {
+        features.installOn(compile, null);
+    }
 }
 
 fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.Step.Run, modules: []const ModuleEntry) void {
@@ -72,11 +79,15 @@ fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.
 }
 
 // look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
-fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
+fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
     const semver = try std.SemanticVersion.parse(raw_version);
     var version = std.ArrayList(u8).init(b.allocator);
     defer version.deinit();
     try std.fmt.format(version.writer(), "{}{}{}", .{ semver.major, semver.minor, semver.patch });
+    try ff_build.addFeatureFlag("opencl", @as(
+        ?[]const u8,
+        version.items,
+    ), false);
 
     for (compiles) |compile| {
         if (build_target.os.tag == .windows) {
