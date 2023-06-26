@@ -15,7 +15,7 @@ pub const Event = struct {
         queue: std.ArrayListUnmanaged(Callback),
     };
 
-    pub fn markRunning(self: *Event) !void {
+    pub fn markRunning(self: *Event) void {
         if (comptime (builtin.mode == .Debug or builtin.mode == .ReleaseSafe) and use_atomics) {
             std.debug.assert(@atomicRmw(
                 root.event.Status,
@@ -58,7 +58,7 @@ pub const Event = struct {
             self.lock();
             defer self.unlock();
             cbs = switch (self.cbs) {
-                .queue => |q| try q.toOwnedSlice(root.alloc),
+                .queue => |*q| try q.toOwnedSlice(root.alloc),
                 .marked => unreachable,
             };
             self.cbs = .{ .marked = c_res };

@@ -4,16 +4,17 @@ const zigrc = @import("zigrc");
 
 const Event = root.event.Host.Event;
 const Arc = zigrc.Arc;
+const ArcMultiContext = Arc(MultiContext);
 
 pub const Context = union(enum) {
     Single: SingleContext,
     Multi: *MultiContext,
 
-    pub fn deinit(self: *Context) void {
-        switch (self.*) {
+    pub fn deinit(self: *Context) !void {
+        return switch (self.*) {
             .Single => return,
-            .Multi => |*ctx| ctx.deinit(),
-        }
+            .Multi => |ctx| ctx.deinit(),
+        };
     }
 };
 
@@ -42,12 +43,13 @@ pub fn info(ty: root.context.ContextInfo, raw_data: ?*anyopaque, len: *usize) !v
 pub fn finish(ctx: *Context) !void {
     return switch (ctx.*) {
         .Single => |*c| c.finish(),
+        .Multi => |c| c.finish(),
     };
 }
 
 // Context for single-threaded devices
 const SingleContext = struct {
-    queue: std.ArrayListUnmanaged(Task),
+    queue: std.ArrayListUnmanaged(Task) = .{},
     queue_lock: if (root.use_atomics) std.Thread.Mutex else void = if (root.use_atomics) .{} else {},
 
     pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) void {
@@ -99,7 +101,7 @@ const MultiContext = struct {
             .tasks_lock = .{},
         };
 
-        var i = 0;
+        var i: usize = 0;
         errdefer for (ctx.threads[0..i]) |thread| thread.detach();
         while (i < cores) {
             ctx.threads[i] = try std.Thread.spawn(.{}, worker, .{ctx});
@@ -110,28 +112,34 @@ const MultiContext = struct {
     }
 
     fn worker(self: *MultiContext) void {
-        self.tasks_lock.lockShared();
-        defer self.tasks_lock.unlockShared();
-
-        var yield = false;
+        var yield: u2 = 2;
         while (true) {
+            self.tasks_lock.lockShared();
+
             // Wait for tasks to be available
             if (self.tasks.items.len == 0) {
+                self.tasks_lock.unlockShared();
                 switch (yield) {
-                    true => std.Thread.yield() catch std.atomic.spinLoopHint(),
-                    false => std.atomic.spinLoopHint(),
+                    0 => {
+                        std.Thread.yield() catch std.atomic.spinLoopHint();
+                        yield = 2;
+                    },
+                    1, 2 => {
+                        std.atomic.spinLoopHint();
+                        yield -= 1;
+                    },
+                    else => unreachable,
                 }
-                yield = !yield;
+
                 continue;
             }
 
             // Unlock shared
             self.tasks_lock.unlockShared();
-            defer self.tasks_lock.lockShared();
-            yield = false;
+            yield = 2;
 
             // Pop task from the queue
-            const task: Task = brk: {
+            var task: Task = brk: {
                 self.tasks_lock.lock();
                 defer self.tasks_lock.unlock();
 
@@ -153,7 +161,10 @@ const MultiContext = struct {
         }
     }
 
-    pub fn deinit(self: *MultiContext) void {
+    pub fn deinit(self: *MultiContext) !void {
+        const this = ArcMultiContext{ .value = self, .alloc = root.alloc };
+        defer this.release();
+
         //for (self.threads) |thread| thread.detach();
         self.tasks.deinit(root.alloc);
         root.alloc.free(self.threads);
@@ -169,16 +180,16 @@ const Task = struct {
     fn run(self: *Task) void {
         defer self.event.release();
 
-        const event = self.event.upgrade();
+        const event: ?Arc(Event) = self.event.upgrade();
         if (event) |evt| evt.value.markRunning();
 
-        const res = brk: {
+        const res: ?anyerror = brk: {
             (self.f)(self.user_data) catch |e| break :brk e;
             break :brk null;
         };
 
         if (event) |evt| {
-            evt.value.markComplete(res);
+            evt.value.markComplete(res) catch @panic("OOM");
             evt.releaseWithFn(Event.deinit);
         }
     }

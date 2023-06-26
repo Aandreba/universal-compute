@@ -7,7 +7,7 @@ pub const Host = @import("device/host.zig");
 pub const OpenCl = @import("device/opencl.zig");
 
 comptime {
-    root.checkLayout(Device, root.extern_sizes.DEVICE_SIZE, root.extern_sizes.DEVICE_ALIGN);
+    root.exportLayout(Device);
 }
 
 pub const Device = union(root.Backend) {

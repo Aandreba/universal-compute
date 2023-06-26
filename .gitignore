@@ -2,3 +2,4 @@ docs/
 zig-out/
 zig-cache/
 example/out/*
+__comptime_info__.h

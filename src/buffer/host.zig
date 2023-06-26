@@ -7,7 +7,7 @@ const Event = root.event.Host.Event;
 
 pub const Buffer = struct {
     slice: []align(std.Target.maxIntAlignment(builtin.target)) u8,
-    context: *Context
+    context: *Context,
 };
 
 pub inline fn create(ctx: *Context, size: usize) !Buffer {
@@ -18,13 +18,13 @@ pub inline fn create(ctx: *Context, size: usize) !Buffer {
     };
 }
 
-pub fn read(self: *const Buffer, offset: usize, len: usize, dst: [*]anyopaque) *Event {
-    switch (self.context) {
-        .Single => {},
-        .Multi => {}
-    }
-}
+// pub fn read(self: *const Buffer, offset: usize, len: usize, dst: [*]anyopaque) *Event {
+//     switch (self.context) {
+//         .Single => {},
+//         .Multi => {}
+//     }
+// }
 
 pub inline fn deinit(buf: Buffer) void {
-    root.alloc.free(buf);
+    root.alloc.free(buf.slice);
 }

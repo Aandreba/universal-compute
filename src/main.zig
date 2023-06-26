@@ -4,7 +4,6 @@ pub const device = @import("device.zig");
 pub const context = @import("context.zig");
 pub const buffer = @import("buffer.zig");
 pub const event = @import("event.zig");
-pub const extern_sizes = @cImport(@cInclude("uc_extern_sizes.h"));
 
 pub usingnamespace @import("utils.zig");
 pub usingnamespace @import("error.zig");
@@ -17,7 +16,7 @@ usingnamespace event;
 pub const Backend = backend.Kind;
 
 pub const cl = struct {
-    const root = @import("root");
+    const root = @import("main.zig");
     const c = @cImport(@cInclude("CL/cl.h"));
     pub usingnamespace c;
 
@@ -102,13 +101,12 @@ pub fn castOpaque(comptime T: type, ptr: *anyopaque, len: usize) !*T {
     return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
 }
 
-pub fn checkLayout(comptime T: type, comptime size: comptime_int, comptime alignment: comptime_int) void {
-    if (@sizeOf(T) != size) {
-        const str = std.fmt.comptimePrint("Invalid size for '{s}': expected '{}', found '{}'", .{ @typeName(T), size, @sizeOf(T) });
-        @compileError(str);
-    }
-    if (@alignOf(T) != alignment) {
-        const str = std.fmt.comptimePrint("Invalid alignment for '{s}': expected '{}', found '{}'", .{ @typeName(T), alignment, @alignOf(T) });
-        @compileError(str);
-    }
+pub fn exportLayout(comptime T: type) void {
+    const Impl = struct {
+        fn s() callconv(.C) void {}
+        fn a() callconv(.C) void {}
+    };
+
+    @export(Impl.a, .{ .name = "TYPEINFO_" ++ @typeName(T) ++ "_size_" ++ std.fmt.comptimePrint("{}", .{@sizeOf(T)}) });
+    @export(Impl.s, .{ .name = "TYPEINFO_" ++ @typeName(T) ++ "_align_" ++ std.fmt.comptimePrint("{}", .{@alignOf(T)}) });
 }

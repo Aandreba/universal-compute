@@ -5,7 +5,7 @@ pub const Host = @import("event/host.zig");
 pub const OpenCl = @import("event/opencl.zig");
 
 comptime {
-    root.checkLayout(Event, root.extern_sizes.EVENT_SIZE, root.extern_sizes.EVENT_ALIGN);
+    root.exportLayout(Event);
 }
 
 pub const Event = union(root.Backend) {

@@ -5,7 +5,7 @@ pub const Host = @import("context/host.zig");
 pub const OpenCl = @import("context/opencl.zig");
 
 comptime {
-    root.checkLayout(Context, root.extern_sizes.CONTEXT_SIZE, root.extern_sizes.CONTEXT_ALIGN);
+    root.exportLayout(Context);
 }
 
 pub const Context = union(root.Backend) {

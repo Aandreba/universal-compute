@@ -1,18 +1,6 @@
-#include <stdint.h>
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
-#define DEVICE_SIZE 2 * sizeof(size_t)
-#define DEVICE_ALIGN sizeof(size_t)
-
-#define CONTEXT_SIZE 3 * sizeof(size_t)
-#define CONTEXT_ALIGN sizeof(size_t)
-
-#define BUFFER_SIZE 3 * sizeof(size_t)
-#define BUFFER_ALIGN sizeof(size_t)
-
-#define EVENT_SIZE 2 * sizeof(size_t)
-#define EVENT_ALIGN sizeof(size_t)
+#define device.Device_SIZE 16
+#define device.Device_ALIGN 8
+#define buffer.Buffer_SIZE 32
+#define buffer.Buffer_ALIGN 8
+#define event.Event_SIZE 16
+#define event.Event_ALIGN 8

@@ -66,7 +66,7 @@ pub fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
 }
 
 pub fn getCoreCount() !usize {
-    if (comptime builtin.single_threaded) return 1;
+    if (comptime !root.use_atomics) return 1;
     return std.Thread.getCpuCount();
 }
 
@@ -138,11 +138,3 @@ const Cpuid = struct {
         @compileError("cpuid only available on x86/64");
     }
 };
-
-test "get cpu info" {
-    var device = try std.testing.allocator.create(root.device.Device);
-    defer std.testing.allocator.destroy(device);
-
-    _ = try getDevices(@ptrCast([*]root.device.Device, device)[0..1]);
-    defer device.ucDeviceDeinit();
-}

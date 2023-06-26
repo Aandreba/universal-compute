@@ -6,7 +6,7 @@ pub const Host = @import("buffer/host.zig");
 pub const OpenCl = @import("buffer/opencl.zig");
 
 comptime {
-    root.checkLayout(Buffer, root.extern_sizes.BUFFER_SIZE, root.extern_sizes.BUFFER_ALIGN);
+    root.exportLayout(Buffer);
 }
 
 pub const Buffer = union(root.Backend) {
@@ -17,7 +17,7 @@ pub const Buffer = union(root.Backend) {
 pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config: *const BufferConfig, buffer: *Buffer) root.uc_result_t {
     _ = config;
     buffer.* = switch (context.*) {
-        .Host => .{ .Host = Host.create(size) catch |e| return root.externError(e) },
+        .Host => |*ctx| .{ .Host = Host.create(ctx, size) catch |e| return root.externError(e) },
         .OpenCl => |*ctx| .{ .OpenCl = OpenCl.create(ctx, size) catch |e| return root.externError(e) },
     };
     return root.UC_RESULT_SUCCESS;

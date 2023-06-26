@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Library options
-    const options = .{
+    const lib_options = .{
         .name = "universal-compute",
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
@@ -39,20 +39,22 @@ pub fn build(b: *std.Build) !void {
     const opencl = b.option([]const u8, "opencl", "Add OpenCL backend with the specified OpenCL version (defaults to null)") orelse null;
 
     // Library
-    const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
-    lib.addIncludePath("include");
-    if (libc) lib.linkLibC();
-    lib.rdynamic = linkage == .dynamic;
-    lib.emit_docs = if (docs) .emit else .default;
-    lib.emit_analysis = .emit;
+    const comptime_info = try Utils.parseComptimeInfo(b);
+    const lib = addLibrary(b, lib_options, docs, linkage, libc);
+    lib.step.dependOn(&comptime_info.step);
     b.installArtifact(lib);
+
+    // Generate comptime info
+    const geninfo = addComptimeInfo(b, target, optimize, libc);
+    const geninfo_step = b.step("comptime_info", "Generate comptime info");
+    geninfo_step.dependOn(&geninfo.step);
 
     // Tests
     const tests = addTests(b, target, optimize, libc);
     const example = try addExample(b, lib, target, optimize, libc);
 
     // Import libraries
-    const compiles = &[_]*std.build.Step.Compile{ lib, tests, example };
+    const compiles = &[_]*std.build.Step.Compile{ lib, tests, example, geninfo };
     addModules(compiles, submodule, &[_]ModuleEntry{
         .{ "zigrc", zigrc },
     });
@@ -94,6 +96,15 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
 
         compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
     }
+}
+
+fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: ?Linkage, libc: bool) *std.build.Step.Compile {
+    const lib: *std.build.Step.Compile = if (linkage == Linkage.static) b.addStaticLibrary(options) else if (linkage != null) b.addSharedLibrary(options) else b.addTest(options);
+    lib.addIncludePath("include");
+    if (libc) lib.linkLibC();
+    lib.rdynamic = linkage == Linkage.dynamic;
+    lib.emit_docs = if (docs) .emit else .default;
+    return lib;
 }
 
 fn addTests(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
@@ -139,7 +150,70 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     return example;
 }
 
+fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
+    const options = .{
+        .name = "__comptime_info__",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    };
+
+    const lib = addLibrary(b, options, false, null, libc);
+    lib.emit_h = true;
+    lib.expect_errors = &[_][]const u8{"FileNotFound"};
+    return lib;
+}
+
 const Utils = struct {
+    fn parseComptimeInfo(b: *std.Build) !*std.Build.Step.WriteFile {
+        const s = std.fs.cwd().readFileAlloc(b.allocator, "__comptime_info__.h", std.math.maxInt(usize)) catch |e| brk: {
+            if (e == error.FileNotFound) break :brk &[0]u8{};
+            return e;
+        };
+        defer b.allocator.free(s);
+
+        const START_STR = "zig_extern void TYPEINFO_";
+        const END_STR = "(void);";
+        var lines = if (build_target.os.tag == .windows)
+            std.mem.splitSequence(u8, s, "\r\n")
+        else
+            std.mem.splitScalar(u8, s, '\n');
+
+        var output_lines = std.ArrayList(u8).init(b.allocator);
+        defer output_lines.deinit();
+
+        while (lines.next()) |line| {
+            if (!std.mem.startsWith(u8, line, START_STR) or !std.mem.endsWith(u8, line, END_STR)) continue;
+            var info = std.mem.splitBackwardsScalar(u8, line[START_STR.len .. line.len - END_STR.len], '_');
+
+            const value = info.next().?;
+            const param = try std.ascii.allocUpperString(b.allocator, info.next().?);
+            defer b.allocator.free(param);
+
+            var ty = std.ArrayList(u8).init(b.allocator);
+            defer ty.deinit();
+            while (info.next()) |chunk| {
+                try ty.appendSlice(chunk);
+            }
+
+            try std.fmt.format(
+                output_lines.writer(),
+                "#define {s}_{s} {s}\n",
+                .{ ty.items, param, value },
+            );
+        }
+
+        // allocate a large enough buffer to store the cwd
+        var buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+        const path = try std.fs.path.join(b.allocator, &[_][]const u8{
+            try std.os.getcwd(&buf),
+            "include/uc_extern_sizes.h",
+        });
+        defer b.allocator.free(path);
+
+        return b.addWriteFile(path, output_lines.items);
+    }
+
     fn getCudaPath(alloc: std.mem.Allocator) !?[]const u8 {
         if (std.os.getenvW(std.unicode.utf8ToUtf16LeStringLiteral("CUDA_PATH"))) |utf16_path| {
             const path = try std.unicode.utf16leToUtf8Alloc(alloc, utf16_path);
