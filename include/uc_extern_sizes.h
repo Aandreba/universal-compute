@@ -1,6 +1,8 @@
-#define device.Device_SIZE 16
-#define device.Device_ALIGN 8
-#define buffer.Buffer_SIZE 32
-#define buffer.Buffer_ALIGN 8
-#define event.Event_SIZE 16
-#define event.Event_ALIGN 8
+#define DEVICE_SIZE 16
+#define DEVICE_ALIGN 8
+#define CONTEXT_SIZE 48
+#define CONTEXT_ALIGN 8
+#define BUFFER_SIZE 32
+#define BUFFER_ALIGN 8
+#define EVENT_SIZE 16
+#define EVENT_ALIGN 8

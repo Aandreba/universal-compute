@@ -45,7 +45,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(lib);
 
     // Generate comptime info
-    const geninfo = addComptimeInfo(b, target, optimize, libc);
+    const geninfo = addComptimeInfo(b, target, optimize, linkage, libc);
     const geninfo_step = b.step("comptime_info", "Generate comptime info");
     geninfo_step.dependOn(&geninfo.step);
 
@@ -98,11 +98,11 @@ fn buildOpenCl(b: *std.Build, raw_version: []const u8, compiles: []const *std.bu
     }
 }
 
-fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: ?Linkage, libc: bool) *std.build.Step.Compile {
-    const lib: *std.build.Step.Compile = if (linkage == Linkage.static) b.addStaticLibrary(options) else if (linkage != null) b.addSharedLibrary(options) else b.addTest(options);
+fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: Linkage, libc: bool) *std.build.Step.Compile {
+    const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
     lib.addIncludePath("include");
     if (libc) lib.linkLibC();
-    lib.rdynamic = linkage == Linkage.dynamic;
+    lib.rdynamic = linkage == .dynamic;
     lib.emit_docs = if (docs) .emit else .default;
     return lib;
 }
@@ -150,7 +150,7 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     return example;
 }
 
-fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, libc: bool) *std.build.Step.Compile {
+fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, linkage: Linkage, libc: bool) *std.build.Step.Compile {
     const options = .{
         .name = "__comptime_info__",
         .root_source_file = .{ .path = "src/main.zig" },
@@ -158,7 +158,7 @@ fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, libc:
         .optimize = optimize,
     };
 
-    const lib = addLibrary(b, options, false, null, libc);
+    const lib = addLibrary(b, options, false, linkage, libc);
     lib.emit_h = true;
     lib.expect_errors = &[_][]const u8{"FileNotFound"};
     return lib;
@@ -194,6 +194,17 @@ const Utils = struct {
             defer ty.deinit();
             while (info.next()) |chunk| {
                 try ty.appendSlice(chunk);
+            }
+
+            var parts = std.mem.splitScalar(u8, ty.items, '.');
+            if (parts.next()) |lhs| {
+                if (parts.next()) |rhs| {
+                    if (parts.next() == null and std.ascii.eqlIgnoreCase(lhs, rhs)) {
+                        ty.clearRetainingCapacity();
+                        try ty.ensureTotalCapacity(rhs.len);
+                        ty.items = std.ascii.upperString(ty.allocatedSlice(), rhs);
+                    }
+                }
             }
 
             try std.fmt.format(
