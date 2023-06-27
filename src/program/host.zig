@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const root = @import("../main.zig");
+const Program = @This();
 
 const target: std.Target = builtin.target;
 const is_unix = switch (target.os.tag) {
@@ -9,6 +10,11 @@ const is_unix = switch (target.os.tag) {
 };
 
 const Impl = if (is_unix) UnixImpl else if (target.isWasm()) WasmImpl else if (target.os.tag == .windows) WindowsImpl else UnsupportedImpl;
+impl: Impl,
+
+pub fn open(path: []const u8) Program {
+    _ = path;
+}
 
 pub const UnsupportedImpl = struct {
     fn open(_: anytype) noreturn {
@@ -85,6 +91,4 @@ pub const UnixImpl = struct {
 };
 
 // TODO
-pub const WasmImpl = struct {
-    const wasmer = @cImport(@cInclude("wasmer.h"));
-};
+pub const WasmImpl = struct {};
