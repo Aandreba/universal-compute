@@ -33,13 +33,14 @@ pub fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const anyopaque
     switch (self.context.*) {
         .Single => {
             const ctx = &self.context.Single;
-            const evt = ctx.enqueue(Impl.write, .{ self.slice[offset .. offset + len], src });
-            return evt;
+            return ctx.enqueue(Impl.write, .{ self.slice[offset .. offset + len], src });
         },
         .Multi => |ctx| {
             const min_size_per_worker = std.atomic.cache_line;
             const size_per_worker = len / ctx.threads.len;
+
             var event = try Arc(Event).init(root.alloc, .{ .workers = undefined });
+            errdefer event.releaseWithFn(Event.deinit);
 
             if (size_per_worker < min_size_per_worker) {
                 event.value.workers = 1;

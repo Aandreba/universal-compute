@@ -217,6 +217,7 @@ const MultiContext = struct {
     pub fn deinit(self: *MultiContext) void {
         self.is_running.store(false, .Release);
         for (self.threads) |thread| thread.join();
+
         self.tasks.deinit(root.alloc);
         root.alloc.free(self.threads);
         root.alloc.destroy(self);
