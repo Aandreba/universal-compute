@@ -1,8 +1,8 @@
 #define DEVICE_SIZE 8
 #define DEVICE_ALIGN 8
-#define CONTEXT_SIZE 48
+#define CONTEXT_SIZE 56
 #define CONTEXT_ALIGN 8
 #define BUFFER_SIZE 32
 #define BUFFER_ALIGN 8
-#define EVENT_SIZE 16
+#define EVENT_SIZE 32
 #define EVENT_ALIGN 8

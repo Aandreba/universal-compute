@@ -32,10 +32,13 @@ pub export fn ucBufferWrite(
 ) root.uc_result_t {
     switch (self.*) {
         .Host => {
-            const host_evt = try Host.write(&self.Host, offset, len, src);
-            if (evt) |e| e.* = host_evt;
+            const host_evt = Host.write(&self.Host, offset, len, src) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .Host = host_evt };
         },
-        .OpenCl => if (!root.features.has_opencl) unreachable else {},
+        .OpenCl => if (!root.features.has_opencl) unreachable else {
+            const cl_event = OpenCl.write(&self.OpenCl, offset, len, src) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .OpenCl = cl_event };
+        },
     }
     return root.UC_RESULT_SUCCESS;
 }

@@ -72,9 +72,9 @@ pub const Event = struct {
 pub fn join(self: *Event) !void {
     if (comptime use_atomics) {
         while (true) {
-            switch (@atomicLoad(root.event.Status, &self.status, .Acquire)) {
-                .COMPLETE => return,
-                else => |status| std.Thread.Futex.wait(@ptrCast(*const std.atomic.Atomic(u32), &self.status), @enumToInt(status)),
+            switch (self.status.load(.Acquire)) {
+                0 => return,
+                else => |status| std.Thread.Futex.wait(&self.status, status),
             }
         }
     } else {
@@ -93,22 +93,6 @@ pub fn onComplete(self: *Event, f: *const fn (root.uc_result_t, ?*anyopaque) cal
         .queue => |*cbs| try cbs.append(root.alloc, cb),
         .marked => |c_res| cb.call(c_res),
     }
-}
-
-pub inline fn release(self: *Event) void {
-    const arc = ArcEvent{
-        .value = self,
-        .alloc = root.alloc,
-    };
-    arc.releaseWithFn(Event.deinit);
-}
-
-pub inline fn retain(self: *Event) void {
-    var arc = ArcEvent{
-        .value = self,
-        .alloc = root.alloc,
-    };
-    _ = arc.retain();
 }
 
 const Callback = struct {

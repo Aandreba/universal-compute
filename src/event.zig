@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("main.zig");
+const Arc = @import("zigrc").Arc;
 
 pub const Host = @import("event/host.zig");
 pub const OpenCl = if (root.features.has_opencl) @import("event/opencl.zig") else struct {};
@@ -9,13 +10,13 @@ comptime {
 }
 
 pub const Event = union(root.Backend) {
-    Host: *Host.Event,
+    Host: Arc(Host.Event),
     OpenCl: if (root.features.has_opencl) root.cl.cl_event else void,
 };
 
 pub export fn ucEventJoin(event: *Event) root.uc_result_t {
     const res = switch (event.*) {
-        .Host => |evt| Host.join(evt),
+        .Host => |evt| Host.join(evt.value),
         .OpenCl => if (!root.features.has_opencl) unreachable else OpenCl.join(&event.OpenCl),
     };
     res catch |e| return root.externError(e);
@@ -28,7 +29,7 @@ pub export fn ucEventOnComplete(
     user_data: ?*anyopaque,
 ) root.uc_result_t {
     const res = switch (event.*) {
-        .Host => |evt| Host.onComplete(evt, cb, user_data),
+        .Host => |evt| Host.onComplete(evt.value, cb, user_data),
         .OpenCl => |evt| if (!root.features.has_opencl) unreachable else OpenCl.onComplete(evt, cb, user_data),
     };
     res catch |e| return root.externError(e);
@@ -37,7 +38,7 @@ pub export fn ucEventOnComplete(
 
 pub export fn ucEventRelease(event: *Event) root.uc_result_t {
     switch (event.*) {
-        .Host => |evt| Host.release(evt),
+        .Host => |evt| evt.releaseWithFn(Host.Event.deinit),
         .OpenCl => |evt| if (!root.features.has_opencl) unreachable else return root.cl.externError(root.cl.clReleaseEvent(evt)),
     }
     return root.UC_RESULT_SUCCESS;
@@ -45,7 +46,9 @@ pub export fn ucEventRelease(event: *Event) root.uc_result_t {
 
 pub export fn ucEventRetain(event: *Event) root.uc_result_t {
     switch (event.*) {
-        .Host => |evt| Host.retain(evt),
+        .Host => {
+            _ = event.Host.retain();
+        },
         .OpenCl => |evt| if (!root.features.has_opencl) unreachable else return root.cl.externError(root.cl.clRetainEvent(evt)),
     }
     return root.UC_RESULT_SUCCESS;

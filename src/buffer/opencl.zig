@@ -24,3 +24,9 @@ pub fn create(ctx: *root.context.OpenCl.Context, size: usize) !Buffer {
     try c.clError(res);
     return .{ .mem = mem, .queue = ctx.queue };
 }
+
+pub fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const anyopaque) !c.cl_event {
+    var event: c.cl_event = undefined;
+    try c.clError(c.clEnqueueWriteBuffer(self.queue, self.mem, c.CL_FALSE, offset, len, raw_src, 0, null, &event));
+    return event;
+}

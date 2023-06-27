@@ -13,7 +13,7 @@ pub const Buffer = struct {
     context: *Context,
 };
 
-pub inline fn create(ctx: *Context, size: usize) !Buffer {
+pub fn create(ctx: *Context, size: usize) !Buffer {
     const slice = try root.alloc.alignedAlloc(u8, comptime std.Target.maxIntAlignment(builtin.target), size);
     return .{
         .slice = slice,
@@ -21,9 +21,10 @@ pub inline fn create(ctx: *Context, size: usize) !Buffer {
     };
 }
 
-pub export fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const anyopaque) !*Event {
+pub fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const anyopaque) !Arc(Event) {
     const Impl = struct {
-        inline fn write(slice: Slice, src: []const u8) !void {
+        inline fn write(slice: []u8, src: []const u8) !void {
+            std.debug.assert(slice.len == src.len);
             @memcpy(slice, src);
         }
     };
@@ -33,19 +34,18 @@ pub export fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const an
         .Single => {
             const ctx = &self.context.Single;
             const evt = ctx.enqueue(Impl.write, .{ self.slice[offset .. offset + len], src });
-            return evt.value;
+            return evt;
         },
         .Multi => |ctx| {
             const min_size_per_worker = std.atomic.cache_line;
             const size_per_worker = len / ctx.threads.len;
-            var event = Arc(Event).init(root.alloc, .{ .workers = undefined });
+            var event = try Arc(Event).init(root.alloc, .{ .workers = undefined });
 
             if (size_per_worker < min_size_per_worker) {
                 event.value.workers = 1;
-                const evt = ctx.enqueue(Impl.write, .{ self.slice[offset .. offset + len], src }, &event);
-                return evt.value;
+                try ctx.enqueue(Impl.write, .{ self.slice[offset .. offset + len], src }, &event);
             } else {
-                event.value.workers = ctx.threads.len;
+                event.value.workers = @intCast(u32, ctx.threads.len);
                 for (0..ctx.threads.len - 1) |i| {
                     const chunk_offset = i * size_per_worker;
 
@@ -55,22 +55,23 @@ pub export fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const an
                     var src_chunk = src[chunk_offset..];
                     src_chunk.len = size_per_worker;
 
-                    ctx.enqueue(Impl.slice, .{ slice_chunk, src_chunk }, &event);
+                    try ctx.enqueue(Impl.write, .{ slice_chunk, src_chunk }, &event);
                 }
 
                 // Last thread accounts for remaining slice
-                const remainder_size = size_per_worker + (len % ctx.threads.len);
+                const last_worker_size = size_per_worker + (len % ctx.threads.len);
                 const chunk_offset = (ctx.threads.len - 1) * size_per_worker;
 
                 var slice_chunk = self.slice[offset + chunk_offset ..];
-                slice_chunk.len = size_per_worker + remainder;
+                slice_chunk.len = last_worker_size;
 
                 var src_chunk = src[chunk_offset..];
-                src_chunk.len = size_per_worker;
+                src_chunk.len = last_worker_size;
 
-                ctx.enqueue(Impl.slice, .{ slice_chunk, src_chunk }, &event);
+                try ctx.enqueue(Impl.write, .{ slice_chunk, src_chunk }, &event);
             }
-            // TODO
+
+            return event;
         },
     }
 }

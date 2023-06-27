@@ -51,32 +51,37 @@ const SingleContext = struct {
     queue: std.ArrayListUnmanaged(Task) = .{},
     queue_lock: if (root.use_atomics) std.Thread.Mutex else void = if (root.use_atomics) .{} else {},
 
-    pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) Arc(Event) {
+    pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) !Arc(Event) {
         const Args = @TypeOf(args);
         const Impl = struct {
             fn run(user_data: *anyopaque) anyerror!void {
                 if (comptime @sizeOf(Args) == 0) {
-                    try @call(.Auto, f, undefined);
+                    try @call(.auto, f, undefined);
                 } else {
                     const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
                     defer root.alloc.destroy(args_ptr);
-                    try @call(.Auto, f, args_ptr.*);
+                    try @call(.auto, f, args_ptr.*);
                 }
             }
         };
 
         var event: Arc(Event) = try Arc(Event).init(root.alloc, .{ .workers = 1 });
+        errdefer event.releaseWithFn(Event.deinit);
+
         const user_data = if (comptime @sizeOf(Args) == 0) undefined else try root.alloc.create(Args);
         if (comptime @sizeOf(Args) > 0) user_data.* = args;
+        errdefer root.alloc.destroy(user_data);
 
         self.lock();
         defer self.unlock();
 
-        self.queue.append(root.alloc, .{
-            Impl.run,
-            user_data,
-            event.downgrade(),
+        try self.queue.append(root.alloc, .{
+            .f = Impl.run,
+            .user_data = user_data,
+            .event = event.downgrade(),
         });
+
+        return event;
     }
 
     pub fn finish(self: *SingleContext) !void {
@@ -130,35 +135,35 @@ const MultiContext = struct {
         return ctx;
     }
 
-    pub fn enqueue(self: *MultiContext, comptime f: anytype, args: anytype, event: *Arc(Event)) void {
+    pub fn enqueue(self: *MultiContext, comptime f: anytype, args: anytype, event: *Arc(Event)) !void {
         const Args = @TypeOf(args);
         const Impl = struct {
             fn run(user_data: *anyopaque) anyerror!void {
                 if (comptime @sizeOf(Args) == 0) {
-                    try @call(.Auto, f, undefined);
+                    try @call(.auto, f, undefined);
                 } else {
                     const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
                     defer root.alloc.destroy(args_ptr);
-                    try @call(.Auto, f, args_ptr.*);
+                    try @call(.auto, f, args_ptr.*);
                 }
             }
         };
 
         const user_data = if (comptime @sizeOf(Args) == 0) undefined else try root.alloc.create(Args);
         if (comptime @sizeOf(Args) > 0) user_data.* = args;
+        errdefer root.alloc.destroy(user_data);
 
         self.tasks_lock.lock();
         defer self.tasks_lock.unlock();
 
-        self.tasks.append(root.alloc, .{
-            Impl.run,
-            user_data,
-            event.downgrade(),
+        try self.tasks.append(root.alloc, .{
+            .f = Impl.run,
+            .user_data = user_data,
+            .event = event.downgrade(),
         });
     }
 
     fn worker(self: *MultiContext) void {
-        const workers = @intCast(u32, self.threads.len);
         var yield: u2 = 2;
 
         while (self.is_running.load(.Monotonic)) {
@@ -196,7 +201,7 @@ const MultiContext = struct {
             };
 
             // Execute task
-            task.run(workers);
+            task.run();
         }
     }
 
@@ -223,11 +228,11 @@ const Task = struct {
     user_data: *anyopaque,
     event: Arc(Event).Weak,
 
-    fn run(self: *Task, workers: u32) void {
+    fn run(self: *Task) void {
         defer self.event.release();
 
         const event: ?Arc(Event) = self.event.upgrade();
-        if (event) |evt| evt.value.markRunning(workers);
+        if (event) |evt| evt.value.markRunning();
 
         const res: ?anyerror = brk: {
             (self.f)(self.user_data) catch |e| break :brk e;
@@ -235,7 +240,7 @@ const Task = struct {
         };
 
         if (event) |evt| {
-            evt.value.markComplete(res, workers) catch @panic("OOM");
+            evt.value.markComplete(res) catch @panic("OOM");
             evt.releaseWithFn(Event.deinit);
         }
     }
