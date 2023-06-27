@@ -174,7 +174,7 @@ const MultiContext = struct {
                 self.tasks_lock.unlockShared();
                 switch (yield) {
                     0 => {
-                        std.Thread.yield() catch std.atomic.spinLoopHint();
+                        root.yield() catch std.atomic.spinLoopHint();
                         yield = 2;
                     },
                     1, 2 => {
