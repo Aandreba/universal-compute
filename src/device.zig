@@ -7,7 +7,7 @@ pub const Host = @import("device/host.zig");
 pub const OpenCl = if (root.features.has_opencl) @import("device/opencl.zig") else struct {};
 
 comptime {
-    root.exportLayout(Device);
+    root.exportLayout(Device, null);
 }
 
 pub const Device = union(root.Backend) {

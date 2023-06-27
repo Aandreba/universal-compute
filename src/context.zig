@@ -5,7 +5,7 @@ pub const Host = @import("context/host.zig");
 pub const OpenCl = if (root.features.has_opencl) @import("context/opencl.zig") else struct {};
 
 comptime {
-    root.exportLayout(Context);
+    root.exportLayout(Context, null);
 }
 
 pub const Context = union(root.Backend) {

@@ -6,7 +6,7 @@ pub const Host = @import("event/host.zig");
 pub const OpenCl = if (root.features.has_opencl) @import("event/opencl.zig") else struct {};
 
 comptime {
-    root.exportLayout(Event);
+    root.exportLayout(Event, null);
 }
 
 pub const Event = union(root.Backend) {

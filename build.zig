@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) !void {
     const docs = b.option(bool, "docs", "Generate docs (defaults to false)") orelse false;
     const linkage = b.option(Linkage, "linkage", "Defines the linkage type for the library (defaults to static)") orelse .static;
     const libc = b.option(bool, "libc", "Links libc to the output library (defaults to true)") orelse true;
-    const opencl = b.option([]const u8, "opencl", "Add OpenCL backend with the specified OpenCL version (defaults to null)") orelse null;
+    const opencl = b.option([]const u8, "opencl", "Add OpenCL backend with the specified OpenCL version (defaults to null)");
 
     // Library
     const comptime_info = try Utils.parseComptimeInfo(b);
@@ -79,14 +79,10 @@ fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.
 }
 
 // look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
-fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, raw_version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
-    const semver = try std.SemanticVersion.parse(raw_version);
-    var version = std.ArrayList(u8).init(b.allocator);
-    defer version.deinit();
-    try std.fmt.format(version.writer(), "{}{}{}", .{ semver.major, semver.minor, semver.patch });
+fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
     try ff_build.addFeatureFlag("opencl", @as(
         ?[]const u8,
-        version.items,
+        version,
     ), false);
 
     for (compiles) |compile| {

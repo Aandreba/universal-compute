@@ -6,7 +6,7 @@ pub const Host = @import("buffer/host.zig");
 pub const OpenCl = if (root.features.has_opencl) @import("buffer/opencl.zig") else struct {};
 
 comptime {
-    root.exportLayout(Buffer);
+    root.exportLayout(Buffer, null);
 }
 
 pub const Buffer = union(root.Backend) {
