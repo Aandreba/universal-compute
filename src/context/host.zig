@@ -51,7 +51,7 @@ const SingleContext = struct {
     queue: std.ArrayListUnmanaged(Task) = .{},
     queue_lock: if (root.use_atomics) std.Thread.Mutex else void = if (root.use_atomics) .{} else {},
 
-    pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) void {
+    pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) Arc(Event) {
         const Args = @TypeOf(args);
         const Impl = struct {
             fn run(user_data: *anyopaque) anyerror!void {
@@ -59,12 +59,24 @@ const SingleContext = struct {
                     try @call(.Auto, f, undefined);
                 } else {
                     const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
+                    defer root.alloc.destroy(args_ptr);
                     try @call(.Auto, f, args_ptr.*);
                 }
             }
         };
 
-        self.queue.append(root.alloc, Impl.run);
+        var event: Arc(Event) = try Arc(Event).init(root.alloc, .{ .workers = 1 });
+        const user_data = if (comptime @sizeOf(Args) == 0) undefined else try root.alloc.create(Args);
+        if (comptime @sizeOf(Args) > 0) user_data.* = args;
+
+        self.lock();
+        defer self.unlock();
+
+        self.queue.append(root.alloc, .{
+            Impl.run,
+            user_data,
+            event.downgrade(),
+        });
     }
 
     pub fn finish(self: *SingleContext) !void {
@@ -72,8 +84,8 @@ const SingleContext = struct {
         defer self.unlock();
 
         while (self.queue.items.len > 0) {
-            const task = self.queue.pop();
-            task.run();
+            const task: Task = self.queue.pop();
+            task.run(1);
         }
     }
 
@@ -118,8 +130,37 @@ const MultiContext = struct {
         return ctx;
     }
 
+    pub fn enqueue(self: *MultiContext, comptime f: anytype, args: anytype, event: *Arc(Event)) void {
+        const Args = @TypeOf(args);
+        const Impl = struct {
+            fn run(user_data: *anyopaque) anyerror!void {
+                if (comptime @sizeOf(Args) == 0) {
+                    try @call(.Auto, f, undefined);
+                } else {
+                    const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
+                    defer root.alloc.destroy(args_ptr);
+                    try @call(.Auto, f, args_ptr.*);
+                }
+            }
+        };
+
+        const user_data = if (comptime @sizeOf(Args) == 0) undefined else try root.alloc.create(Args);
+        if (comptime @sizeOf(Args) > 0) user_data.* = args;
+
+        self.tasks_lock.lock();
+        defer self.tasks_lock.unlock();
+
+        self.tasks.append(root.alloc, .{
+            Impl.run,
+            user_data,
+            event.downgrade(),
+        });
+    }
+
     fn worker(self: *MultiContext) void {
+        const workers = @intCast(u32, self.threads.len);
         var yield: u2 = 2;
+
         while (self.is_running.load(.Monotonic)) {
             self.tasks_lock.lockShared();
 
@@ -155,7 +196,7 @@ const MultiContext = struct {
             };
 
             // Execute task
-            task.run();
+            task.run(workers);
         }
     }
 
@@ -182,11 +223,11 @@ const Task = struct {
     user_data: *anyopaque,
     event: Arc(Event).Weak,
 
-    fn run(self: *Task) void {
+    fn run(self: *Task, workers: u32) void {
         defer self.event.release();
 
         const event: ?Arc(Event) = self.event.upgrade();
-        if (event) |evt| evt.value.markRunning();
+        if (event) |evt| evt.value.markRunning(workers);
 
         const res: ?anyerror = brk: {
             (self.f)(self.user_data) catch |e| break :brk e;
@@ -194,7 +235,7 @@ const Task = struct {
         };
 
         if (event) |evt| {
-            evt.value.markComplete(res) catch @panic("OOM");
+            evt.value.markComplete(res, workers) catch @panic("OOM");
             evt.releaseWithFn(Event.deinit);
         }
     }
