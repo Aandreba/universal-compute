@@ -1,9 +1,9 @@
 #ifndef __UC_UTILS
 #define __UC_UTILS
 
-#include "uc_extern_sizes.h"
-
 #include <stdint.h>
+
+#include "uc_extern_sizes.h"
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -43,8 +43,7 @@ typedef char bool;
 #endif
 
 #define uc_opaque(name, size, align)      \
-    typedef struct name                   \
-    {                                     \
+    typedef struct name {                 \
         uint8_t zig_align(align) _[size]; \
     } name;
 

@@ -67,10 +67,10 @@ int main() {
         uc_buffer alpha;
         errorHandler(ucCreateBuffer(&context, 5 * sizeof(float), &buffer_config, &alpha));
 
-        float alpha_contents[] = {1.f, 2.f, 3.f, 4.f, 5.f};
-        uc_event write;
-        errorHandler(ucBufferWrite(&alpha, 0, sizeof(alpha_contents), alpha_contents, &write));
-        errorHandler(ucEventJoin(&write));
+        // float alpha_contents[] = {1.f, 2.f, 3.f, 4.f, 5.f};
+        // uc_event write;
+        // errorHandler(ucBufferWrite(&alpha, 0, sizeof(alpha_contents), alpha_contents, &write));
+        // errorHandler(ucEventJoin(&write));
 
         // Deinit everything
         errorHandler(ucBufferDeinit(&alpha));

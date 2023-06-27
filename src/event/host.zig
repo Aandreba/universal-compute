@@ -2,13 +2,17 @@ const std = @import("std");
 const builtin = @import("builtin");
 const root = @import("../main.zig");
 
+const AtomicU32 = std.atomic.Atomic(u32);
 const ArcEvent = @import("zigrc").Arc(Event);
 const use_atomics: bool = root.use_atomics;
 
+pub const PENDING = std.math.maxInt(u32);
+
 pub const Event = struct {
-    status: root.event.Status = .PENDING,
+    status: AtomicU32 = AtomicU32.init(PENDING),
     cbs: CallbackQueue = .{ .queue = .{} },
     cbs_lock: if (use_atomics) std.Thread.Mutex else void = if (use_atomics) .{} else {},
+    workers: u32,
 
     const CallbackQueue = union(enum) {
         marked: root.uc_result_t,
@@ -16,42 +20,16 @@ pub const Event = struct {
     };
 
     pub fn markRunning(self: *Event) void {
-        if (comptime (builtin.mode == .Debug or builtin.mode == .ReleaseSafe) and use_atomics) {
-            std.debug.assert(@atomicRmw(
-                root.event.Status,
-                &self.status,
-                .Xchg,
-                .RUNNING,
-                .Release,
-            ) == .PENDING);
-        } else if (comptime use_atomics) {
-            @atomicStore(root.event.Status, &self.status, .RUNNING, .Release);
+        std.debug.assert(self.workers != PENDING);
+        if (comptime use_atomics) {
+            self.status.store(self.workers, .Release);
         } else {
-            std.debug.assert(self.status == .PENDING);
-            self.status = .RUNNING;
+            std.debug.assert(self.status == PENDING);
+            self.status.storeUnchecked(self.workers);
         }
     }
 
     pub fn markComplete(self: *Event, res: ?anyerror) !void {
-        if (comptime (builtin.mode == .Debug or builtin.mode == .ReleaseSafe) and use_atomics) {
-            std.debug.assert(@atomicRmw(
-                root.event.Status,
-                &self.status,
-                .Xchg,
-                .COMPLETE,
-                .Release,
-            ) == .RUNNING);
-        } else if (comptime use_atomics) {
-            @atomicStore(root.event.Status, &self.status, .COMPLETE, .Release);
-        } else {
-            std.debug.assert(self.status == .RUNNING);
-            self.status = .COMPLETE;
-        }
-
-        if (comptime use_atomics) {
-            std.Thread.Futex.wake(@ptrCast(*const std.atomic.Atomic(u32), &self.status), std.math.maxInt(u32));
-        }
-
         const c_res = if (res) |e| root.externError(e) else root.UC_RESULT_SUCCESS;
         var cbs: []Callback = undefined;
         {
@@ -62,6 +40,13 @@ pub const Event = struct {
                 .marked => unreachable,
             };
             self.cbs = .{ .marked = c_res };
+        }
+
+        if (comptime use_atomics) {
+            const prev = self.status.fetchSub(1, .Release);
+            if (prev == 1) std.Thread.Futex.wake(&self.status, self.workers);
+        } else {
+            self.status.storeUnchecked(self.status.loadUnchecked() - 1);
         }
 
         for (cbs) |cb| cb.call(c_res);

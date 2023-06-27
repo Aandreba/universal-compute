@@ -104,8 +104,6 @@ fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, raw_version: []const u8, co
         } else {
             compile.linkSystemLibrary("OpenCL");
         }
-
-        compile.defineCMacro("CL_TARGET_OPENCL_VERSION", version.items);
     }
 }
 
@@ -148,6 +146,7 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     example.addIncludePath("include");
     example.c_std = .C11;
     example.linkLibrary(lib);
+    example.emit_llvm_ir = .emit;
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {
@@ -156,7 +155,6 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
 
     const example_step = b.step("example", "Run the included example");
     example_step.dependOn(&run.step);
-    example_step.dependOn(&lib.step);
 
     return example;
 }

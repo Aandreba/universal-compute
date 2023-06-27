@@ -23,6 +23,23 @@ pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config
     return root.UC_RESULT_SUCCESS;
 }
 
+pub export fn ucBufferWrite(
+    self: *Buffer,
+    offset: usize,
+    len: usize,
+    src: *const anyopaque,
+    evt: ?*root.event.Event,
+) root.uc_result_t {
+    switch (self.*) {
+        .Host => {
+            const host_evt = try Host.write(&self.Host, offset, len, src);
+            if (evt) |e| e.* = host_evt;
+        },
+        .OpenCl => if (!root.features.has_opencl) unreachable else {},
+    }
+    return root.UC_RESULT_SUCCESS;
+}
+
 pub export fn ucBufferDeinit(buffer: *Buffer) root.uc_result_t {
     const res: anyerror!void = switch (buffer.*) {
         .Host => |buf| Host.deinit(buf),
