@@ -185,10 +185,7 @@ const Utils = struct {
 
         const START_STR = "zig_extern void TYPEINFO_";
         const END_STR = "(void);";
-        var lines = if (build_target.os.tag == .windows)
-            std.mem.splitSequence(u8, s, "\r\n")
-        else
-            std.mem.splitScalar(u8, s, '\n');
+        var lines = std.mem.splitScalar(u8, s, '\n');
 
         var output_lines = std.ArrayList(u8).init(b.allocator);
         defer output_lines.deinit();
