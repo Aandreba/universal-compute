@@ -42,6 +42,7 @@
         "xlocnum": "c",
         "xtr1common": "c",
         "imm.h": "c",
-        "uc_extern_sizes.h": "c"
+        "uc_extern_sizes.h": "c",
+        "complex": "cpp"
     }
 }

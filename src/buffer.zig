@@ -23,6 +23,26 @@ pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config
     return root.UC_RESULT_SUCCESS;
 }
 
+pub export fn ucBufferRead(
+    self: *Buffer,
+    offset: usize,
+    len: usize,
+    dst: *anyopaque,
+    evt: ?*root.event.Event,
+) root.uc_result_t {
+    switch (self.*) {
+        .Host => {
+            const host_evt = Host.read(&self.Host, offset, len, dst) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .Host = host_evt };
+        },
+        .OpenCl => if (!root.features.has_opencl) unreachable else {
+            const cl_event = OpenCl.read(&self.OpenCl, offset, len, dst) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .OpenCl = cl_event };
+        },
+    }
+    return root.UC_RESULT_SUCCESS;
+}
+
 pub export fn ucBufferWrite(
     self: *Buffer,
     offset: usize,
@@ -40,6 +60,32 @@ pub export fn ucBufferWrite(
             if (evt) |e| e.* = .{ .OpenCl = cl_event };
         },
     }
+    return root.UC_RESULT_SUCCESS;
+}
+
+pub export fn ucBufferCopy(
+    src: *Buffer,
+    src_offset: usize,
+    dst: *Buffer,
+    dst_offset: usize,
+    len: usize,
+    evt: ?*root.event.Event,
+) root.uc_result_t {
+    if (@as(root.Backend, src.*) != @as(root.Backend, dst.*)) {
+        return root.externError(error.DiferentBackends);
+    }
+
+    switch (src.*) {
+        .Host => {
+            const host_evt = Host.copy(&src.Host, src_offset, &dst.Host, dst_offset, len) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .Host = host_evt };
+        },
+        .OpenCl => if (!root.features.has_opencl) unreachable else {
+            const cl_evt = OpenCl.copy(&src.OpenCl, src_offset, &dst.OpenCl, dst_offset, len) catch |e| return root.externError(e);
+            if (evt) |e| e.* = .{ .OpenCl = cl_evt };
+        },
+    }
+
     return root.UC_RESULT_SUCCESS;
 }
 

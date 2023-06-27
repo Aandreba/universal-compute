@@ -12,6 +12,8 @@ typedef int16_t uc_result;
 typedef int32_t uc_result;
 #elif ERROR_SIZE == 8 && ERROR_ALIGN == 8
 typedef int64_t uc_result;
+#elif ERROR_SIZE == 16 && ERROR_ALIGN == 16
+typedef __int128 uc_result;
 #else
 #error "Unsupported error type"
 #endif

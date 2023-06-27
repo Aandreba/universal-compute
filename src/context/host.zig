@@ -9,6 +9,19 @@ pub const Context = union(enum) {
     Single: SingleContext,
     Multi: *MultiContext,
 
+    pub fn eql(self: *Context, other: *Context) bool {
+        return switch (self.*) {
+            .Single => |lhs| switch (other.*) {
+                .Single => |rhs| lhs.context_id == rhs.context_id,
+                else => false,
+            },
+            .Multi => |lhs| switch (other.*) {
+                .Multi => |rhs| lhs == rhs,
+                else => false,
+            },
+        };
+    }
+
     pub fn deinit(self: *Context) void {
         return switch (self.*) {
             .Single => return,
@@ -20,7 +33,7 @@ pub const Context = union(enum) {
 pub fn create() !Context {
     return switch (try root.device.Host.getCoreCount()) {
         0 => unreachable,
-        1 => .{ .Single = .{} },
+        1 => .{ .Single = SingleContext.init() },
         else => |cc| .{ .Multi = try MultiContext.init(cc) },
     };
 }
@@ -48,8 +61,21 @@ pub fn finish(ctx: *Context) !void {
 
 // Context for single-threaded devices
 const SingleContext = struct {
+    context_id: u32,
     queue: std.ArrayListUnmanaged(Task) = .{},
     queue_lock: if (root.use_atomics) std.Thread.Mutex else void = if (root.use_atomics) .{} else {},
+
+    var context_id_count = std.atomic.Atomic(u32).init(0);
+
+    pub fn init() SingleContext {
+        return .{
+            .context_id = if (root.use_atomics) context_id_count.fetchAdd(1, .Monotonic) else brk: {
+                const prev = context_id_count.value;
+                context_id_count.value += 1;
+                break :brk prev;
+            },
+        };
+    }
 
     pub fn enqueue(self: *SingleContext, comptime f: anytype, args: anytype) !Arc(Event) {
         const Args = @TypeOf(args);

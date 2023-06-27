@@ -16,8 +16,9 @@ typedef size_t uc_buffer_info;
 #define UC_BUFFER_INFO_CONTEXT 2
 
 zig_extern uc_result ucCreateBuffer(uc_context *context, size_t size, const uc_buffer_config *config, uc_buffer *buffer);
-zig_extern uc_result ucBufferRead(const uc_buffer *buffer, size_t offset, size_t len, void *dst, uc_event *event);
+zig_extern uc_result ucBufferRead(uc_buffer *buffer, size_t offset, size_t len, void *dst, uc_event *event);
 zig_extern uc_result ucBufferWrite(uc_buffer *buffer, size_t offset, size_t len, const void *src, uc_event *event);
+zig_extern uc_result ucBufferCopy(uc_buffer *src, size_t src_offset, uc_buffer *dst, size_t dst_offset, size_t len, uc_event *event);
 zig_extern uc_result ucBufferDeinit(uc_buffer *buffer);
 
 #endif
