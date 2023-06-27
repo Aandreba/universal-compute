@@ -1,7 +1,7 @@
 set windows-shell := ["powershell.exe", "-c"]
 
 build STEP *ARGS:
-    zig build comptime_info {{ARGS}}
+    zig build -Dcomptime_info {{ARGS}}
     zig build {{STEP}} {{ARGS}}
 
 submodule:

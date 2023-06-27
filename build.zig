@@ -39,24 +39,22 @@ pub fn build(b: *std.Build) !void {
     const linkage = b.option(Linkage, "linkage", "Defines the linkage type for the library (defaults to static)") orelse .static;
     const libc = b.option(bool, "libc", "Links libc to the output library (defaults to true)") orelse true;
     const opencl = b.option([]const u8, "opencl", "Add OpenCL backend with the specified OpenCL version (defaults to null)");
+    const comptime_info_flag = b.option(bool, "comptime_info", "Generates compile-time information (defaults to false)") orelse false;
+    try ff_build.addFeatureFlag("comptime_info", comptime_info_flag, false);
 
     // Library
     const comptime_info = try Utils.parseComptimeInfo(b);
-    const lib = addLibrary(b, lib_options, docs, linkage, libc);
-    lib.step.dependOn(&comptime_info.step);
-    b.installArtifact(lib);
-
-    // Generate comptime info
-    const geninfo = addComptimeInfo(b, target, optimize, linkage, libc);
-    const geninfo_step = b.step("comptime_info", "Generate comptime info");
-    geninfo_step.dependOn(&geninfo.step);
+    const lib: *std.build.Step.Compile = if (comptime_info_flag) addComptimeInfo(b, target, optimize, linkage, libc) else addLibrary(b, lib_options, docs, linkage, libc);
+    if (!comptime_info_flag) lib.step.dependOn(&comptime_info.step);
+    //b.installArtifact(lib);
+    b.default_step = &lib.step;
 
     // Tests
     const tests = addTests(b, target, optimize, libc);
     const example = try addExample(b, lib, target, optimize, libc);
 
     // Import libraries
-    const compiles = &[_]*std.build.Step.Compile{ lib, tests, example, geninfo };
+    const compiles = &[_]*std.build.Step.Compile{ lib, tests, example };
     addModules(compiles, submodule, &[_]ModuleEntry{
         .{ "zigrc", zigrc },
     });

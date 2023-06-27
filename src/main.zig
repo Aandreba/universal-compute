@@ -106,12 +106,14 @@ pub fn castOpaque(comptime T: type, ptr: *anyopaque, len: usize) !*T {
 }
 
 pub fn exportLayout(comptime T: type, comptime raw_name: ?[]const u8) void {
-    const Impl = struct {
-        fn s() callconv(.C) void {}
-        fn a() callconv(.C) void {}
-    };
+    if (comptime features.comptime_info) {
+        const Impl = struct {
+            fn s() callconv(.C) void {}
+            fn a() callconv(.C) void {}
+        };
 
-    const name = raw_name orelse @typeName(T);
-    @export(Impl.a, .{ .name = "TYPEINFO_" ++ name ++ "_size_" ++ std.fmt.comptimePrint("{}", .{@sizeOf(T)}) });
-    @export(Impl.s, .{ .name = "TYPEINFO_" ++ name ++ "_align_" ++ std.fmt.comptimePrint("{}", .{@alignOf(T)}) });
+        const name = raw_name orelse @typeName(T);
+        @export(Impl.a, .{ .name = "TYPEINFO_" ++ name ++ "_size_" ++ std.fmt.comptimePrint("{}", .{@sizeOf(T)}) });
+        @export(Impl.s, .{ .name = "TYPEINFO_" ++ name ++ "_align_" ++ std.fmt.comptimePrint("{}", .{@alignOf(T)}) });
+    }
 }
