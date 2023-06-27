@@ -76,6 +76,8 @@ fn addModules(compiles: []const *std.build.Step.Compile, submodule: ?*std.build.
     }
 }
 
+// LIBRARIES
+
 // look into [this](https://github.com/gustavolsson/zig-opencl-test/blob/master/build.zig)
 fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, version: []const u8, compiles: []const *std.build.Step.Compile, submodule: *std.build.Step.Run) !void {
     try ff_build.addFeatureFlag("opencl", @as(
@@ -100,6 +102,24 @@ fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, version: []const u8, compil
         }
     }
 }
+
+fn buildWasmer(b: *std.Build, compiles: []const *std.build.Step.Compile) !void {
+    var cmd = std.ChildProcess.init(&[_][]const u8{ "wasmer", "config", "--includedir" }, b.allocator);
+    const path = 0;
+
+    var cmd = std.ChildProcess.init(&[_][]const u8{ "wasmer", "config", "--includedir" }, b.allocator);
+    cmd.stdout_behavior = .Pipe;
+    cmd.spawn();
+    const include = cmd.stdout.?.readToEndAlloc(b.allocator, std.math.maxInt(usize));
+    defer b.allocator.free(include);
+    try cmd.wait();
+
+    for (compiles) |compile| {
+        compile.addObjectFile(source_file: []const u8)
+    }
+}
+
+// STEPS
 
 fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: Linkage, libc: bool) *std.build.Step.Compile {
     const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);

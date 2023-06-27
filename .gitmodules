@@ -7,3 +7,6 @@
 [submodule "lib/zig-ff"]
 	path = lib/zig-ff
 	url = https://github.com/Aandreba/zig-feature-flags
+[submodule "lib/wasmer"]
+	path = lib/wasmer
+	url = https://github.com/wasmerio/wasmer.git
