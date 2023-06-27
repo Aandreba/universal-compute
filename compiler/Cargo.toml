@@ -6,3 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cfg-if = "1.0.0"
+wasmer = { version = "4.0.0" }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen = "0.2.87"
+
+[target.'cfg(target_family = "wasm")'.dependencies.wasmer]
+features = ["js"]
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies.wasmer]
+features = ["sys", "llvm"]
