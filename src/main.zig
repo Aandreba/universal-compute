@@ -102,7 +102,7 @@ pub const cl = if (features.opencl) |cl_version| struct {
 
 pub fn castOpaque(comptime T: type, ptr: *anyopaque, len: usize) !*T {
     if (len < @sizeOf(T)) return error.InvalidSize;
-    return @ptrCast(*T, @alignCast(@alignOf(T), ptr));
+    return @as(*T, @ptrCast(@alignCast(ptr)));
 }
 
 pub fn exportLayout(comptime T: type, comptime raw_name: ?[]const u8) void {

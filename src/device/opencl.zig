@@ -7,9 +7,9 @@ pub fn getDevices(devices: []root.device.Device) !usize {
     // Platforms
     var num_platforms: c.cl_uint = 0;
     try c.clError(c.clGetPlatformIDs(0, null, &num_platforms));
-    var platforms = try alloc.alloc(c.cl_platform_id, @intCast(usize, num_platforms));
+    var platforms = try alloc.alloc(c.cl_platform_id, @as(usize, @intCast(num_platforms)));
     defer alloc.free(platforms);
-    try c.clError(c.clGetPlatformIDs(num_platforms, @ptrCast([*]c.cl_platform_id, platforms), null));
+    try c.clError(c.clGetPlatformIDs(num_platforms, @as([*]c.cl_platform_id, @ptrCast(platforms)), null));
 
     // Devices
     var count: usize = 0;
@@ -26,7 +26,7 @@ pub fn getDevices(devices: []root.device.Device) !usize {
         ));
 
         var cl_devices = try alloc.alloc(c.cl_device_id, std.math.min(
-            @intCast(usize, num_devices),
+            @as(usize, @intCast(num_devices)),
             devices.len,
         ));
         defer alloc.free(cl_devices);
@@ -34,8 +34,8 @@ pub fn getDevices(devices: []root.device.Device) !usize {
         try c.clError(c.clGetDeviceIDs(
             platform,
             c.CL_DEVICE_TYPE_ALL,
-            @intCast(c.cl_uint, cl_devices.len),
-            @ptrCast([*]c.cl_device_id, cl_devices),
+            @as(c.cl_uint, @intCast(cl_devices.len)),
+            @as([*]c.cl_device_id, @ptrCast(cl_devices)),
             null,
         ));
 
@@ -57,7 +57,7 @@ pub fn getDeviceInfo(info: root.device.DeviceInfo, device: c.cl_device_id, raw_p
             .CORE_COUNT, .MAX_FREQUENCY => {
                 var count: c.cl_uint = undefined;
                 try c.clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, &count, null));
-                (try root.castOpaque(usize, ptr, raw_len.*)).* = @intCast(usize, count);
+                (try root.castOpaque(usize, ptr, raw_len.*)).* = @as(usize, @intCast(count));
             },
             else => {
                 return c.clError(c.clGetDeviceInfo(device, raw_info, raw_len.*, ptr, null));

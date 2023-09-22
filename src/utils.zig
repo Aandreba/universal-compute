@@ -25,7 +25,7 @@ pub fn enumList(comptime T: type) [@typeInfo(T).Enum.fields.len]T {
 
     var result: [info.fields.len]T = undefined;
     inline for (info.fields, 0..) |field, i| {
-        result[i] = @intToEnum(T, field.value);
+        result[i] = @as(T, @enumFromInt(field.value));
     }
 
     return result;

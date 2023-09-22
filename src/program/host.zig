@@ -44,7 +44,7 @@ pub const WindowsImpl = struct {
 
     fn symbol(self: *WindowsImpl, name: [*:0]const u8) !*anyopaque {
         const res = try w.GetProcAddress(self.module, name);
-        return @ptrCast(*anyopaque, res);
+        return @as(*anyopaque, @ptrCast(res));
     }
 
     fn close(self: *WindowsImpl) !void {

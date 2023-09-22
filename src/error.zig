@@ -30,11 +30,11 @@ pub export fn ucErrorHasName(e: uc_result_t, raw_name: [*]const u8, name_len: us
 }
 
 pub fn externError(e: anyerror) uc_result_t {
-    return -@intCast(uc_result_t, @errorToInt(e));
+    return -@as(uc_result_t, @intCast(@intFromError(e)));
 }
 
 pub fn resultToError(res: uc_result_t) !void {
     if (res >= 0) return;
-    const e = @intCast(raw_errot_t, -res);
-    return @intToError(e);
+    const e = @as(raw_errot_t, @intCast(-res));
+    return @errorFromInt(e);
 }

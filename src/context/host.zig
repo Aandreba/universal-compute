@@ -84,7 +84,7 @@ const SingleContext = struct {
                 if (comptime @sizeOf(Args) == 0) {
                     try @call(.auto, f, undefined);
                 } else {
-                    const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
+                    const args_ptr = @as(*Args, @ptrCast(@alignCast(user_data)));
                     defer root.alloc.destroy(args_ptr);
                     try @call(.auto, f, args_ptr.*);
                 }
@@ -168,7 +168,7 @@ const MultiContext = struct {
                 if (comptime @sizeOf(Args) == 0) {
                     try @call(.auto, f, undefined);
                 } else {
-                    const args_ptr = @ptrCast(*Args, @alignCast(@alignOf(Args), user_data));
+                    const args_ptr = @as(*Args, @ptrCast(@alignCast(user_data)));
                     defer root.alloc.destroy(args_ptr);
                     try @call(.auto, f, args_ptr.*);
                 }

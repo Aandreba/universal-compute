@@ -7,6 +7,7 @@ const build_target: std.Target = builtin.target;
 const CrossTarget = std.zig.CrossTarget;
 const Optimize = std.builtin.Mode;
 const ModuleEntry = struct { []const u8, *std.Build.Module };
+const LazyPath = std.build.LazyPath;
 
 pub const Linkage = enum {
     static,
@@ -107,10 +108,18 @@ fn buildOpenCl(b: *std.Build, ff_build: *ff.Builder, version: []const u8, compil
 
 fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: Linkage, libc: bool) *std.build.Step.Compile {
     const lib: *std.build.Step.Compile = if (linkage == .static) b.addStaticLibrary(options) else b.addSharedLibrary(options);
-    lib.addIncludePath("include");
+    lib.addIncludePath(LazyPath.relative("include"));
     if (libc) lib.linkLibC();
     lib.rdynamic = linkage == .dynamic;
-    lib.emit_docs = if (docs) .emit else .default;
+
+    if (docs) {
+        _ = b.addInstallDirectory(.{
+            .source_dir = lib.getEmittedDocs(),
+            .install_dir = .prefix,
+            .install_subdir = "docs",
+        });
+    }
+
     return lib;
 }
 
@@ -140,11 +149,12 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
         .optimize = optimize,
     });
     if (libc) example.linkLibC();
-    example.addCSourceFile("example/main.c", &[_][]const u8{"-std=c11"});
-    example.addIncludePath("include");
+
+    example.addCSourceFile(.{ .file = LazyPath.relative("example/main.c"), .flags = &[_][]const u8{"-std=c11"} });
+    example.addIncludePath(LazyPath.relative("include"));
     example.c_std = .C11;
     example.linkLibrary(lib);
-    example.emit_llvm_ir = .emit;
+    // example.emit_llvm_ir = .emit;
 
     const run = b.addRunArtifact(example);
     // for (kernels) |kernel| {
@@ -166,7 +176,12 @@ fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, linka
     };
 
     const lib = addLibrary(b, options, false, linkage, libc);
-    lib.emit_h = true;
+    _ = b.addInstallDirectory(.{
+        .source_dir = lib.getEmittedH(),
+        .install_dir = .prefix,
+        .install_subdir = ".",
+    });
+
     lib.expect_errors = &[_][]const u8{"FileNotFound"};
     return lib;
 }

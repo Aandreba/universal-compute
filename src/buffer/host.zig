@@ -22,12 +22,12 @@ pub fn create(ctx: *Context, size: usize) !Buffer {
 }
 
 pub fn read(self: *Buffer, offset: usize, len: usize, raw_dst: *anyopaque) !Arc(Event) {
-    const dst: [*]u8 = @ptrCast([*]u8, raw_dst);
+    const dst: [*]u8 = @as([*]u8, @ptrCast(raw_dst));
     return copy_impl(self.context, self.slice[offset..].ptr, dst, len);
 }
 
 pub fn write(self: *Buffer, offset: usize, len: usize, raw_src: *const anyopaque) !Arc(Event) {
-    const src: [*]const u8 = @ptrCast([*]const u8, raw_src);
+    const src: [*]const u8 = @as([*]const u8, @ptrCast(raw_src));
     return copy_impl(self.context, src, self.slice[offset..].ptr, len);
 }
 
@@ -68,7 +68,7 @@ fn copy_impl(context: *Context, raw_src: [*]const u8, raw_dst: [*]u8, len: usize
                 event.value.workers = 1;
                 try ctx.enqueue(Impl.write, .{ raw_dst[0..len], raw_src[0..len] }, &event);
             } else {
-                event.value.workers = @intCast(u32, ctx.threads.len);
+                event.value.workers = @as(u32, @intCast(ctx.threads.len));
                 for (0..ctx.threads.len - 1) |i| {
                     const chunk_offset = i * size_per_worker;
 

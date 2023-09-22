@@ -39,7 +39,7 @@ pub fn getVendor(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
         if (comptime target.cpu.arch.isX86()) {
             if (raw_len.* < 12) return error.InvalidSize;
             const vendor = Cpuid.vendor();
-            @memcpy(@ptrCast([*]u8, ptr), &vendor);
+            @memcpy(@as([*]u8, @ptrCast(ptr)), &vendor);
         } else {
             @compileError("not yet implemented");
         }
@@ -54,7 +54,7 @@ pub fn getName(raw_ptr: ?*anyopaque, raw_len: *usize) !void {
             if (Cpuid.brand()) |*raw_brand| {
                 const brand = std.mem.sliceTo(raw_brand, 0);
                 if (raw_len.* < brand.len) return error.InvalidSize;
-                @memcpy(@ptrCast([*]u8, ptr), brand);
+                @memcpy(@as([*]u8, @ptrCast(ptr)), brand);
                 raw_len.* = brand.len;
             }
             return;
@@ -86,10 +86,10 @@ const Cpuid = struct {
             \\movl %edx, 4(%rdi)
             \\movl %ecx, 8(%rdi)
             :
-            : [regs] "r" (@ptrToInt(&regs)),
+            : [regs] "r" (@intFromPtr(&regs)),
             : "memory", "eax", "rdi"
         );
-        return @bitCast([12]u8, regs);
+        return @as([12]u8, @bitCast(regs));
     }
 
     pub fn brand() ?[12 * @sizeOf(u32)]u8 {
@@ -100,7 +100,7 @@ const Cpuid = struct {
             \\cpuid
             \\movl %eax, (%rdi)
             :
-            : [sup] "r" (@ptrToInt(&supported)),
+            : [sup] "r" (@intFromPtr(&supported)),
             : "memory", "eax"
         );
 
@@ -109,7 +109,7 @@ const Cpuid = struct {
             cpuid(0x80000002, brand_regs[0..]);
             cpuid(0x80000003, brand_regs[4..]);
             cpuid(0x80000004, brand_regs[8..]);
-            return @bitCast([12 * @sizeOf(u32)]u8, brand_regs);
+            return @as([12 * @sizeOf(u32)]u8, @bitCast(brand_regs));
         }
 
         return null;
@@ -129,7 +129,7 @@ const Cpuid = struct {
                 \\movl %ecx, 8(%rdi)
                 \\movl %edx, 12(%rdi)
                 :
-                : [regs] "r" (@ptrToInt(regs)),
+                : [regs] "r" (@intFromPtr(regs)),
                   [eax] "r" (eax),
                 : "memory", "eax", "rdi"
             );

@@ -22,7 +22,7 @@ pub const Context = struct {
     fn getDevice(self: *const Context, raw_data: ?*anyopaque, len: *usize) !void {
         if (raw_data) |data| {
             var device: c.cl_device_id = undefined;
-            try c.clError(c.clGetContextInfo(self.context, c.CL_CONTEXT_DEVICES, @sizeOf(c.cl_device_id), @ptrCast(*anyopaque, &device), null));
+            try c.clError(c.clGetContextInfo(self.context, c.CL_CONTEXT_DEVICES, @sizeOf(c.cl_device_id), @as(*anyopaque, @ptrCast(&device)), null));
             try c.clError(c.clRetainDevice(device));
             (try root.castOpaque(root.device.Device, data, len.*)).* = .{ .OpenCl = device };
         } else {
@@ -52,8 +52,8 @@ pub fn create(device: c.cl_device_id, config: *const root.context.ContextConfig)
         _ = c.clReleaseContext(ctx);
     }
 
-    var props: c.cl_command_queue_properties = comptime @intCast(c.cl_command_queue_properties, c.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE);
-    if (config.debug) props |= comptime @intCast(c.cl_command_queue_properties, c.CL_QUEUE_PROFILING_ENABLE);
+    var props: c.cl_command_queue_properties = comptime @as(c.cl_command_queue_properties, @intCast(c.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE));
+    if (config.debug) props |= comptime @as(c.cl_command_queue_properties, @intCast(c.CL_QUEUE_PROFILING_ENABLE));
 
     var queue: c.cl_command_queue = if (comptime c.CL_VERSION_2_0 == c.CL_TRUE)
         c.clCreateCommandQueueWithProperties(ctx, device, &[_:0]c.cl_queue_properties{props}, &res)
