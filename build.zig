@@ -113,7 +113,7 @@ fn addLibrary(b: *std.Build, options: anytype, docs: bool, linkage: Linkage, lib
     lib.rdynamic = linkage == .dynamic;
 
     if (docs) {
-        _ = b.addInstallDirectory(.{
+        b.installDirectory(.{
             .source_dir = lib.getEmittedDocs(),
             .install_dir = .prefix,
             .install_subdir = "docs",
@@ -143,12 +143,25 @@ fn addExample(b: *std.Build, lib: *std.build.Step.Compile, target: CrossTarget, 
     defer max_int_align.deinit();
     try std.fmt.format(max_int_align.writer(), "{}", .{std.Target.maxIntAlignment(target.toTarget())});
 
+    const program = b.addSharedLibrary(.{
+        .name = "example_program",
+        .single_threaded = true,
+        .target = target,
+        .optimize = optimize,
+        .link_libc = false,
+    });
+    program.linkage = .dynamic;
+    program.addCSourceFile(.{ .file = LazyPath.relative("example/program.c"), .flags = &[_][]const u8{"-std=c11"} });
+
+    b.default_step.dependOn(&b.addInstallArtifact(program, .{}).step);
+
     const example = b.addExecutable(.{
         .name = "Example",
         .target = target,
         .optimize = optimize,
     });
     if (libc) example.linkLibC();
+    example.step.dependOn(&program.step);
 
     example.addCSourceFile(.{ .file = LazyPath.relative("example/main.c"), .flags = &[_][]const u8{"-std=c11"} });
     example.addIncludePath(LazyPath.relative("include"));
@@ -176,11 +189,11 @@ fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, linka
     };
 
     const lib = addLibrary(b, options, false, linkage, libc);
-    _ = b.addInstallDirectory(.{
+    b.default_step.dependOn(&b.addInstallDirectory(.{
         .source_dir = lib.getEmittedH(),
         .install_dir = .prefix,
         .install_subdir = ".",
-    });
+    }).step);
 
     lib.expect_errors = &[_][]const u8{"FileNotFound"};
     return lib;
@@ -188,7 +201,7 @@ fn addComptimeInfo(b: *std.Build, target: CrossTarget, optimize: Optimize, linka
 
 const Utils = struct {
     fn parseComptimeInfo(b: *std.Build) !*std.Build.Step.WriteFile {
-        const s = std.fs.cwd().readFileAlloc(b.allocator, "__comptime_info__.h", std.math.maxInt(usize)) catch |e| brk: {
+        const s = std.fs.cwd().readFileAlloc(b.allocator, "zig-cache/__comptime_info__.h", std.math.maxInt(usize)) catch |e| brk: {
             if (e == error.FileNotFound) break :brk &[0]u8{};
             return e;
         };

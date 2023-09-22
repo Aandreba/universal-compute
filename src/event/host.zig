@@ -11,7 +11,7 @@ pub const PENDING = std.math.maxInt(u32);
 pub const Event = struct {
     status: AtomicU32 = AtomicU32.init(PENDING),
     cbs: CallbackQueue = .{ .queue = .{} },
-    cbs_lock: if (use_atomics) std.Thread.Mutex else void = if (use_atomics) .{} else {},
+    cbs_lock: if (use_atomics) std.Thread.Mutex else noreturn = if (use_atomics) .{} else {},
     workers: u32,
 
     const CallbackQueue = union(enum) {

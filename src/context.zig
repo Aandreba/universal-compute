@@ -10,7 +10,7 @@ comptime {
 
 pub const Context = union(root.Backend) {
     Host: Host.Context,
-    OpenCl: if (root.features.has_opencl) OpenCl.Context else void,
+    OpenCl: if (root.features.has_opencl) OpenCl.Context else noreturn,
 };
 
 pub export fn ucCreateContext(device: *root.device.Device, config: *const ContextConfig, context: *Context) root.uc_result_t {

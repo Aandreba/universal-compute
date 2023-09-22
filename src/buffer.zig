@@ -11,7 +11,7 @@ comptime {
 
 pub const Buffer = union(root.Backend) {
     Host: Host.Buffer,
-    OpenCl: if (root.features.has_opencl) OpenCl.Buffer else void,
+    OpenCl: if (root.features.has_opencl) OpenCl.Buffer else noreturn,
 };
 
 pub export fn ucCreateBuffer(context: *root.context.Context, size: usize, config: *const BufferConfig, buffer: *Buffer) root.uc_result_t {

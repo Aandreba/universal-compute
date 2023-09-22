@@ -59,7 +59,7 @@ int main() {
         uc_context context;
         const uc_result context_result = ucCreateContext(device, &context_config, &context);
         if (context_result < 0) {
-            fprintf(stdout, "Error: %s (%ld)", ucErrorName(context_result), context_result);
+            fprintf(stderr, "Error: %s (%ld)", ucErrorName(context_result), context_result);
             continue;
         }
 
@@ -75,7 +75,21 @@ int main() {
 
         puts("Copied memory!\n");
 
+        const char PROGRAM_PATH[] = "zig-out/lib/libexample_program.so";
+        uc_program program;
+        errorHandler(ucOpenProgram(&context, (uint8_t *)PROGRAM_PATH, sizeof(PROGRAM_PATH) - 1, &program));
+
+        puts("Opened Program!\n");
+
+        const char SYMBOL_NAME[] = "saxpy";
+        uc_symbol saxpy;
+        errorHandler(ucProgramSymbol(&program, (uint8_t *)SYMBOL_NAME, sizeof(SYMBOL_NAME) - 1, &saxpy));
+
+        puts("Opened Symbol!\n");
+
         // Deinit everything
+        errorHandler(ucSymbolDeinit(&saxpy));
+        errorHandler(ucProgramDeinit(&program));
         errorHandler(ucBufferDeinit(&alpha));
         errorHandler(ucContextDeinit(&context));
         errorHandler(ucDeviceDeinit(device));

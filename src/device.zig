@@ -12,7 +12,7 @@ comptime {
 
 pub const Device = union(root.Backend) {
     Host: void,
-    OpenCl: if (root.features.has_opencl) root.cl.cl_device_id else void,
+    OpenCl: if (root.features.has_opencl) root.cl.cl_device_id else noreturn,
 };
 
 pub export fn ucGetDevices(raw_backends: ?[*]const root.Backend, backends_len: usize, raw_devices: [*]Device, devices_len: *usize) root.uc_result_t {

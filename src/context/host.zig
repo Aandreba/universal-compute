@@ -63,7 +63,7 @@ pub fn finish(ctx: *Context) !void {
 const SingleContext = struct {
     context_id: u32,
     queue: std.ArrayListUnmanaged(Task) = .{},
-    queue_lock: if (root.use_atomics) std.Thread.Mutex else void = if (root.use_atomics) .{} else {},
+    queue_lock: if (root.use_atomics) std.Thread.Mutex else noreturn = if (root.use_atomics) .{} else {},
 
     var context_id_count = std.atomic.Atomic(u32).init(0);
 

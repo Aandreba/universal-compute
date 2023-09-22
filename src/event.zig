@@ -11,7 +11,7 @@ comptime {
 
 pub const Event = union(root.Backend) {
     Host: Arc(Host.Event),
-    OpenCl: if (root.features.has_opencl) root.cl.cl_event else void,
+    OpenCl: if (root.features.has_opencl) root.cl.cl_event else noreturn,
 };
 
 pub export fn ucEventJoin(event: *Event) root.uc_result_t {

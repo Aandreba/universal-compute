@@ -55,7 +55,7 @@ pub fn create(device: c.cl_device_id, config: *const root.context.ContextConfig)
     var props: c.cl_command_queue_properties = comptime @as(c.cl_command_queue_properties, @intCast(c.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE));
     if (config.debug) props |= comptime @as(c.cl_command_queue_properties, @intCast(c.CL_QUEUE_PROFILING_ENABLE));
 
-    var queue: c.cl_command_queue = if (comptime c.CL_VERSION_2_0 == c.CL_TRUE)
+    var queue: c.cl_command_queue = if (@hasDecl(c, "CL_VERSION_2_0") and comptime c.CL_VERSION_2_0 == c.CL_TRUE)
         c.clCreateCommandQueueWithProperties(ctx, device, &[_:0]c.cl_queue_properties{props}, &res)
     else
         c.clCreateCommandQueue(ctx, device, props, &res);

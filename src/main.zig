@@ -5,6 +5,7 @@ pub const device = @import("device.zig");
 pub const context = @import("context.zig");
 pub const buffer = @import("buffer.zig");
 pub const event = @import("event.zig");
+pub const program = @import("program.zig");
 
 pub usingnamespace @import("utils.zig");
 pub usingnamespace @import("error.zig");
@@ -13,6 +14,7 @@ usingnamespace device;
 usingnamespace context;
 usingnamespace buffer;
 usingnamespace event;
+usingnamespace program;
 
 pub const Backend = backend.Kind;
 
@@ -86,10 +88,10 @@ pub const cl = if (features.opencl) |cl_version| struct {
             c.CL_INVALID_COMPILER_OPTIONS => error.InvalidCompilerOptions,
             c.CL_INVALID_LINKER_OPTIONS => error.InvalidLinkerOptions,
             c.CL_INVALID_DEVICE_PARTITION_COUNT => error.InvalidDevicePartitionCount,
-            c.CL_INVALID_PIPE_SIZE => error.InvalidPipeSize,
-            c.CL_INVALID_DEVICE_QUEUE => error.InvalidDeviceQueue,
-            //c.CL_INVALID_SPEC_ID => error.InvalidSpecId,
-            //c.CL_MAX_SIZE_RESTRICTION_EXCEEDED => error.MaxSizeRestrictionExceeded,
+            // c.CL_INVALID_PIPE_SIZE => error.InvalidPipeSize,
+            // c.CL_INVALID_DEVICE_QUEUE => error.InvalidDeviceQueue,
+            // c.CL_INVALID_SPEC_ID => error.InvalidSpecId,
+            // c.CL_MAX_SIZE_RESTRICTION_EXCEEDED => error.MaxSizeRestrictionExceeded,
             else => error.Unkown,
         };
     }
