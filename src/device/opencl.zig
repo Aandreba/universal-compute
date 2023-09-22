@@ -25,7 +25,7 @@ pub fn getDevices(devices: []root.device.Device) !usize {
             &num_devices,
         ));
 
-        var cl_devices = try alloc.alloc(c.cl_device_id, std.math.min(
+        var cl_devices = try alloc.alloc(c.cl_device_id, @min(
             @as(usize, @intCast(num_devices)),
             devices.len,
         ));

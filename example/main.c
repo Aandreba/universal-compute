@@ -2,17 +2,14 @@
 #include <stdlib.h>
 #include <universal-compute.h>
 
-void errorHandler(uc_result res)
-{
-    if (res < 0)
-    {
+void errorHandler(uc_result res) {
+    if (res < 0) {
         fprintf(stderr, "Error: %s (%ld)", ucErrorName(res), res);
         exit(1);
     }
 }
 
-int main()
-{
+int main() {
     puts("\n");
     const uc_context_config context_config = {.debug = true};
     const uc_buffer_config buffer_config;
@@ -24,8 +21,7 @@ int main()
     printf("Available devices: %d\n", device_count);
 
     // Get device info
-    for (int i = 0; i < device_count; i++)
-    {
+    for (int i = 0; i < device_count; i++) {
         const uc_device *device = &devices[i];
         printf("===== Device %d =====\n", i);
 
@@ -62,8 +58,7 @@ int main()
         // Create context
         uc_context context;
         const uc_result context_result = ucCreateContext(device, &context_config, &context);
-        if (context_result < 0)
-        {
+        if (context_result < 0) {
             fprintf(stdout, "Error: %s (%ld)", ucErrorName(context_result), context_result);
             continue;
         }
@@ -77,6 +72,8 @@ int main()
         errorHandler(ucBufferWrite(&alpha, 0, sizeof(alpha_contents), alpha_contents, &write));
         errorHandler(ucEventJoin(&write));
         errorHandler(ucEventRelease(&write));
+
+        puts("Copied memory!\n");
 
         // Deinit everything
         errorHandler(ucBufferDeinit(&alpha));
