@@ -51,6 +51,24 @@ pub fn close(self: *Program) !void {
     return c.clError(c.clReleaseProgram(self.*));
 }
 
+pub fn setInteger(self: *Symbol, idx: usize, _: bool, bits: root.program.IntBits, value: *const anyopaque) !void {
+    return c.clError(c.clSetKernelArg(
+        self.*,
+        @intCast(idx),
+        @divExact(@intFromEnum(bits), 8),
+        value,
+    ));
+}
+
+pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: *const anyopaque) !void {
+    return c.clError(c.clSetKernelArg(
+        self.*,
+        @intCast(idx),
+        @divExact(@intFromEnum(bits), 8),
+        value,
+    ));
+}
+
 pub fn closeSymbol(self: *Symbol) !void {
     return c.clError(c.clReleaseKernel(self.*));
 }

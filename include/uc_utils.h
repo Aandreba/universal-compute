@@ -1,6 +1,7 @@
 #ifndef __UC_UTILS
 #define __UC_UTILS
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "uc_extern_sizes.h"
@@ -8,16 +9,6 @@
 #include <windows.h>
 #else
 #include <unistd.h>
-#endif
-
-#if !defined(__cplusplus) && __STDC_VERSION__ <= 201710L
-#if __STDC_VERSION__ >= 199901L
-#include <stdbool.h>
-#else
-typedef char bool;
-#define false 0
-#define true 1
-#endif
 #endif
 
 #if defined(__cplusplus)

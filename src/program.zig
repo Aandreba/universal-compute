@@ -20,6 +20,21 @@ pub const Symbol = union(root.Backend) {
     OpenCl: if (root.features.has_opencl) OpenCl.Symbol else noreturn,
 };
 
+pub const IntBits = enum(u16) {
+    Eight = 8,
+    Sixteen = 16,
+    ThirtyTwo = 32,
+    SixtyFour = 64,
+    OneEightenn = 128,
+    TwoFiftySix = 256,
+};
+
+pub const FloatBits = enum(u16) {
+    Half = 16,
+    Single = 32,
+    Double = 64,
+};
+
 pub export fn ucOpenProgram(context: *root.context.Context, path: [*]const u8, path_len: usize, program: *Program) root.uc_result_t {
     program.* = switch (context.*) {
         .Host => .{ .Host = Host.open(&context.Host, path[0..path_len]) catch |e| return root.externError(e) },
@@ -45,6 +60,22 @@ pub export fn ucProgramDeinit(self: *Program) root.uc_result_t {
 }
 
 // SYMBOL \\
+pub export fn ucSymbolSetInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.IntBits, value: *const anyopaque) root.uc_result_t {
+    switch (self.*) {
+        .Host => Host.setInteger(&self.Host, idx, signed, bits, value) catch |e| return root.externError(e),
+        .OpenCl => if (!root.features.has_opencl) unreachable else OpenCl.setInteger(&self.OpenCl, idx, signed, bits, value) catch |e| return root.externError(e),
+    }
+    return root.UC_RESULT_SUCCESS;
+}
+
+pub export fn ucSymbolSetFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: *const anyopaque) root.uc_result_t {
+    switch (self.*) {
+        .Host => Host.setFloat(&self.Host, idx, bits, value) catch |e| return root.externError(e),
+        .OpenCl => if (!root.features.has_opencl) unreachable else OpenCl.setFloat(&self.OpenCl, idx, bits, value) catch |e| return root.externError(e),
+    }
+    return root.UC_RESULT_SUCCESS;
+}
+
 pub export fn ucSymbolDeinit(self: *Symbol) root.uc_result_t {
     switch (self.*) {
         .Host => Host.closeSymbol(&self.Host) catch |e| return root.externError(e),

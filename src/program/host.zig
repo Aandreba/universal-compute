@@ -9,9 +9,18 @@ const is_unix = switch (target.os.tag) {
     else => target.isDarwin() or target.isAndroid() or target.isBSD(),
 };
 
-const Impl = if (is_unix) UnixImpl else if (target.isWasm()) WasmImpl else if (target.os.tag == .windows) WindowsImpl else UnsupportedImpl;
-pub const Symbol = *anyopaque;
+const Scalar = union(enum) {
+    Uninit: void,
+    Int: struct { ty: std.builtin.Type.Int, bytes: [32]u8 },
+    Float: struct { ty: std.builtin.Type.Float, bytes: [32]u8 },
+};
 
+pub const Symbol = struct {
+    handle: *anyopaque,
+    args: std.ArrayListUnmanaged(Scalar) = .{},
+};
+
+const Impl = if (is_unix) UnixImpl else if (target.isWasm()) WasmImpl else if (target.os.tag == .windows) WindowsImpl else UnsupportedImpl;
 impl: Impl,
 
 pub fn open(_: *root.context.Host.Context, path: []const u8) !Program {
@@ -19,11 +28,62 @@ pub fn open(_: *root.context.Host.Context, path: []const u8) !Program {
 }
 
 pub fn symbol(self: *Program, name: []const u8) !Symbol {
-    return self.impl.symbol(name);
+    return .{
+        .handle = try self.impl.symbol(name),
+    };
 }
 
 pub fn close(self: *Program) !void {
     return self.impl.close();
+}
+
+pub fn setInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.IntBits, value: *const anyopaque) !void {
+    var entry = Scalar{
+        .Int = .{
+            .ty = .{
+                .signedness = if (signed) .signed else .unsigned,
+                .bits = @intFromEnum(bits),
+            },
+            .bytes = undefined,
+        },
+    };
+
+    const bytes = @divExact(@intFromEnum(bits), 8);
+    @memcpy(entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+
+    try self.args.ensureTotalCapacity(root.alloc, idx + 1);
+    if (std.math.sub(usize, idx, self.args.len)) |delta| {
+        var slice = self.args.unusedCapacitySlice();
+        @memset(slice[0..delta], .Uninit);
+        slice[delta] = entry;
+        self.args.items.len = idx;
+    } else {
+        self.args[idx] = entry;
+    }
+}
+
+pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: *const anyopaque) !void {
+    var entry = Scalar{
+        .Float = .{
+            .ty = .{
+                .bits = @intFromEnum(bits),
+            },
+            .bytes = undefined,
+        },
+    };
+
+    const bytes = @divExact(@intFromEnum(bits), 8);
+    @memcpy(entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+
+    try self.args.ensureTotalCapacity(root.alloc, idx + 1);
+    if (std.math.sub(usize, idx, self.args.len)) |delta| {
+        var slice = self.args.unusedCapacitySlice();
+        @memset(slice[0..delta], .Uninit);
+        slice[delta] = entry;
+        self.args.items.len = idx;
+    } else {
+        self.args[idx] = entry;
+    }
 }
 
 pub fn closeSymbol(_: *Symbol) !void {}

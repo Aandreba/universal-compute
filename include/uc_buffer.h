@@ -11,9 +11,9 @@ typedef struct uc_buffer_config {
 } uc_buffer_config;
 
 typedef size_t uc_buffer_info;
-#define UC_BUFFER_INFO_BACKEND 0
-#define UC_BUFFER_INFO_DEVICE 1
-#define UC_BUFFER_INFO_CONTEXT 2
+#define UC_BUFFER_INFO_BACKEND (uc_buffer_info)0
+#define UC_BUFFER_INFO_DEVICE (uc_buffer_info)1
+#define UC_BUFFER_INFO_CONTEXT (uc_buffer_info)2
 
 zig_extern uc_result ucCreateBuffer(uc_context *context, size_t size, const uc_buffer_config *config, uc_buffer *buffer);
 zig_extern uc_result ucBufferRead(uc_buffer *buffer, size_t offset, size_t len, void *dst, uc_event *event);
