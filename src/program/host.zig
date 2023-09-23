@@ -9,7 +9,7 @@ const is_unix = switch (target.os.tag) {
     else => target.isDarwin() or target.isAndroid() or target.isBSD(),
 };
 
-const Scalar = union(enum) {
+const Argument = union(enum) {
     Uninit: void,
     Int: struct { ty: std.builtin.Type.Int, bytes: [32]u8 },
     Float: struct { ty: std.builtin.Type.Float, bytes: [32]u8 },
@@ -17,7 +17,7 @@ const Scalar = union(enum) {
 
 pub const Symbol = struct {
     handle: *anyopaque,
-    args: std.ArrayListUnmanaged(Scalar) = .{},
+    args: std.ArrayListUnmanaged(Argument) = .{},
 };
 
 const Impl = if (is_unix) UnixImpl else if (target.isWasm()) WasmImpl else if (target.os.tag == .windows) WindowsImpl else UnsupportedImpl;
@@ -38,7 +38,7 @@ pub fn close(self: *Program) !void {
 }
 
 pub fn setInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.IntBits, value: *const anyopaque) !void {
-    var entry = Scalar{
+    var entry = Argument{
         .Int = .{
             .ty = .{
                 .signedness = if (signed) .signed else .unsigned,
@@ -49,21 +49,21 @@ pub fn setInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.In
     };
 
     const bytes = @divExact(@intFromEnum(bits), 8);
-    @memcpy(entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+    @memcpy(&entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
 
     try self.args.ensureTotalCapacity(root.alloc, idx + 1);
-    if (std.math.sub(usize, idx, self.args.len)) |delta| {
+    if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
         var slice = self.args.unusedCapacitySlice();
         @memset(slice[0..delta], .Uninit);
         slice[delta] = entry;
         self.args.items.len = idx;
     } else {
-        self.args[idx] = entry;
+        self.args.items[idx] = entry;
     }
 }
 
 pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: *const anyopaque) !void {
-    var entry = Scalar{
+    var entry = Argument{
         .Float = .{
             .ty = .{
                 .bits = @intFromEnum(bits),
@@ -73,16 +73,16 @@ pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: 
     };
 
     const bytes = @divExact(@intFromEnum(bits), 8);
-    @memcpy(entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+    @memcpy(&entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
 
     try self.args.ensureTotalCapacity(root.alloc, idx + 1);
-    if (std.math.sub(usize, idx, self.args.len)) |delta| {
+    if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
         var slice = self.args.unusedCapacitySlice();
         @memset(slice[0..delta], .Uninit);
         slice[delta] = entry;
         self.args.items.len = idx;
     } else {
-        self.args[idx] = entry;
+        self.args.items[idx] = entry;
     }
 }
 
