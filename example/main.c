@@ -73,7 +73,7 @@ int main() {
         errorHandler(ucEventJoin(&write));
         errorHandler(ucEventRelease(&write));
 
-        puts("Copied memory!\n");
+        puts("\nCopied memory!\n");
 
         const char PROGRAM_PATH[] = "zig-out/lib/libexample_program.so";
         uc_program program;
@@ -86,6 +86,13 @@ int main() {
         errorHandler(ucProgramSymbol(&program, (uint8_t *)SYMBOL_NAME, sizeof(SYMBOL_NAME) - 1, &saxpy));
 
         puts("Opened Symbol!\n");
+        const int32_t saxpy_offset = 0;
+        const int32_t saxpy_n = 5;
+        const float saxpy_alpha = 2.0;
+
+        errorHandler(ucSymbolSetInteger(&saxpy, 0, true, UC_INT_BITS_32, (void *)&saxpy_offset));
+        errorHandler(ucSymbolSetInteger(&saxpy, 1, true, UC_INT_BITS_32, (void *)&saxpy_n));
+        errorHandler(ucSymbolSetFloat(&saxpy, 2, UC_FLOAT_BITS_32, (void *)&saxpy_alpha));
 
         // Deinit everything
         errorHandler(ucSymbolDeinit(&saxpy));

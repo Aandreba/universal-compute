@@ -49,7 +49,7 @@ pub fn setInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.In
     };
 
     const bytes = @divExact(@intFromEnum(bits), 8);
-    @memcpy(&entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+    @memcpy(entry.Int.bytes[0..bytes], @as([*]const u8, @ptrCast(value))[0..bytes]);
 
     try self.args.ensureTotalCapacity(root.alloc, idx + 1);
     if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
@@ -73,7 +73,7 @@ pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: 
     };
 
     const bytes = @divExact(@intFromEnum(bits), 8);
-    @memcpy(&entry.Int.bytes, @as([*]const u8, @ptrCast(value))[0..bytes]);
+    @memcpy(entry.Float.bytes[0..bytes], @as([*]const u8, @ptrCast(value))[0..bytes]);
 
     try self.args.ensureTotalCapacity(root.alloc, idx + 1);
     if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
@@ -86,7 +86,9 @@ pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: 
     }
 }
 
-pub fn closeSymbol(_: *Symbol) !void {}
+pub fn closeSymbol(self: *Symbol) !void {
+    self.args.deinit(root.alloc);
+}
 
 const UnsupportedImpl = struct {
     fn open(_: anytype) noreturn {
