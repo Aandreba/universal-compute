@@ -13,6 +13,7 @@ const Argument = union(enum) {
     Uninit: void,
     Int: struct { ty: std.builtin.Type.Int, bytes: [32]u8 },
     Float: struct { ty: std.builtin.Type.Float, bytes: [32]u8 },
+    Buffer: *anyopaque,
 };
 
 pub const Symbol = struct {
@@ -50,16 +51,7 @@ pub fn setInteger(self: *Symbol, idx: usize, signed: bool, bits: root.program.In
 
     const bytes = @divExact(@intFromEnum(bits), 8);
     @memcpy(entry.Int.bytes[0..bytes], @as([*]const u8, @ptrCast(value))[0..bytes]);
-
-    try self.args.ensureTotalCapacity(root.alloc, idx + 1);
-    if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
-        var slice = self.args.unusedCapacitySlice();
-        @memset(slice[0..delta], .Uninit);
-        slice[delta] = entry;
-        self.args.items.len = idx;
-    } else {
-        self.args.items[idx] = entry;
-    }
+    return setEntry(self, idx, entry);
 }
 
 pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: *const anyopaque) !void {
@@ -74,7 +66,16 @@ pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: 
 
     const bytes = @divExact(@intFromEnum(bits), 8);
     @memcpy(entry.Float.bytes[0..bytes], @as([*]const u8, @ptrCast(value))[0..bytes]);
+    return setEntry(self, idx, entry);
+}
 
+pub fn setBuffer(self: *Symbol, idx: usize, buffer: *root.buffer.Host.Buffer) !void {
+    return setEntry(self, idx, .{
+        .Buffer = @ptrCast(buffer.slice.ptr),
+    });
+}
+
+fn setEntry(self: *Symbol, idx: usize, entry: Argument) !void {
     try self.args.ensureTotalCapacity(root.alloc, idx + 1);
     if (std.math.sub(usize, idx, self.args.items.len) catch null) |delta| {
         var slice = self.args.unusedCapacitySlice();

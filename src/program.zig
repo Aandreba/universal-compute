@@ -76,6 +76,14 @@ pub export fn ucSymbolSetFloat(self: *Symbol, idx: usize, bits: root.program.Flo
     return root.UC_RESULT_SUCCESS;
 }
 
+pub export fn ucSymbolSetBuffer(self: *Symbol, idx: usize, buffer: *root.buffer.Buffer) root.uc_result_t {
+    switch (self.*) {
+        .Host => Host.setBuffer(&self.Host, idx, &buffer.Host) catch |e| return root.externError(e),
+        .OpenCl => if (!root.features.has_opencl) unreachable else OpenCl.setBuffer(&self.OpenCl, idx, &buffer.OpenCl) catch |e| return root.externError(e),
+    }
+    return root.UC_RESULT_SUCCESS;
+}
+
 pub export fn ucSymbolDeinit(self: *Symbol) root.uc_result_t {
     switch (self.*) {
         .Host => Host.closeSymbol(&self.Host) catch |e| return root.externError(e),

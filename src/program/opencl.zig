@@ -69,6 +69,16 @@ pub fn setFloat(self: *Symbol, idx: usize, bits: root.program.FloatBits, value: 
     ));
 }
 
+pub fn setBuffer(self: *Symbol, idx: usize, buffer: *root.buffer.OpenCl.Buffer) !void {
+    const ptr = &buffer.mem;
+    return c.clError(c.clSetKernelArg(
+        self.*,
+        @intCast(idx),
+        @sizeOf(*anyopaque),
+        @ptrCast(&ptr),
+    ));
+}
+
 pub fn closeSymbol(self: *Symbol) !void {
     return c.clError(c.clReleaseKernel(self.*));
 }

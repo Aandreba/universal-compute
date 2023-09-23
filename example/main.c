@@ -64,12 +64,12 @@ int main() {
         }
 
         // Create buffer
-        uc_buffer alpha;
-        errorHandler(ucCreateBuffer(&context, 5 * sizeof(float), &buffer_config, &alpha));
+        uc_buffer buffer;
+        errorHandler(ucCreateBuffer(&context, 5 * sizeof(float), &buffer_config, &buffer));
 
         float alpha_contents[] = {1.f, 2.f, 3.f, 4.f, 5.f};
         uc_event write;
-        errorHandler(ucBufferWrite(&alpha, 0, sizeof(alpha_contents), alpha_contents, &write));
+        errorHandler(ucBufferWrite(&buffer, 0, sizeof(alpha_contents), alpha_contents, &write));
         errorHandler(ucEventJoin(&write));
         errorHandler(ucEventRelease(&write));
 
@@ -93,11 +93,13 @@ int main() {
         errorHandler(ucSymbolSetInteger(&saxpy, 0, true, UC_INT_BITS_32, (void *)&saxpy_offset));
         errorHandler(ucSymbolSetInteger(&saxpy, 1, true, UC_INT_BITS_32, (void *)&saxpy_n));
         errorHandler(ucSymbolSetFloat(&saxpy, 2, UC_FLOAT_BITS_32, (void *)&saxpy_alpha));
+        errorHandler(ucSymbolSetBuffer(&saxpy, 3, &buffer));
+        errorHandler(ucSymbolSetBuffer(&saxpy, 4, &buffer));
 
         // Deinit everything
         errorHandler(ucSymbolDeinit(&saxpy));
         errorHandler(ucProgramDeinit(&program));
-        errorHandler(ucBufferDeinit(&alpha));
+        errorHandler(ucBufferDeinit(&buffer));
         errorHandler(ucContextDeinit(&context));
         errorHandler(ucDeviceDeinit(device));
     }
